@@ -1,0 +1,560 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "factoryName": {
+      "type": "string",
+      "metadata": {
+        "description": "Name of the Data Factory"
+      }
+    }
+  },
+  "resources": [
+    {
+      "type": "Microsoft.DataFactory/factories/datasets",
+      "apiVersion": "2018-06-01",
+      "name": "[concat(parameters('factoryName'), '/AzureBlobStorage1')]",
+      "properties": {
+        "linkedServiceName": {
+          "referenceName": "AzureBlobStorage1",
+          "type": "LinkedServiceReference"
+        },
+        "parameters": {
+          "folderPath": {
+            "type": "String"
+          },
+          "fileName": {
+            "type": "String"
+          },
+          "container": {
+            "type": "String",
+            "defaultValue": "data"
+          }
+        },
+        "annotations": [],
+        "type": "AzureBlob",
+        "typeProperties": {
+          "folderPath": {
+            "value": "@dataset().folderPath",
+            "type": "Expression"
+          },
+          "fileName": {
+            "value": "@dataset().fileName",
+            "type": "Expression"
+          },
+          "format": {
+            "type": "TextFormat",
+            "columnDelimiter": ",",
+            "rowDelimiter": "\n",
+            "firstRowAsHeader": true,
+            "nullValue": "",
+            "treatEmptyAsNull": true
+          }
+        }
+      }
+    },
+    {
+      "type": "Microsoft.DataFactory/factories/datasets",
+      "apiVersion": "2018-06-01",
+      "name": "[concat(parameters('factoryName'), '/AzureSqlDatabase1')]",
+      "properties": {
+        "linkedServiceName": {
+          "referenceName": "AzureSqlDatabase1",
+          "type": "LinkedServiceReference"
+        },
+        "parameters": {
+          "tableName": {
+            "type": "String"
+          },
+          "schemaName": {
+            "type": "String",
+            "defaultValue": "dbo"
+          }
+        },
+        "annotations": [],
+        "type": "AzureSqlTable",
+        "schema": [],
+        "typeProperties": {
+          "schema": {
+            "value": "@dataset().schemaName",
+            "type": "Expression"
+          },
+          "table": {
+            "value": "@dataset().tableName",
+            "type": "Expression"
+          }
+        }
+      }
+    },
+    {
+      "type": "Microsoft.DataFactory/factories/datasets",
+      "apiVersion": "2018-06-01",
+      "name": "[concat(parameters('factoryName'), '/AzureDataLakeStorageGen2')]",
+      "properties": {
+        "linkedServiceName": {
+          "referenceName": "AzureDataLakeStorageGen2",
+          "type": "LinkedServiceReference"
+        },
+        "parameters": {
+          "folderPath": {
+            "type": "String"
+          },
+          "fileName": {
+            "type": "String"
+          },
+          "fileSystem": {
+            "type": "String",
+            "defaultValue": "data"
+          }
+        },
+        "annotations": [],
+        "type": "AzureBlobFSFile",
+        "typeProperties": {
+          "folderPath": {
+            "value": "@dataset().folderPath",
+            "type": "Expression"
+          },
+          "fileName": {
+            "value": "@dataset().fileName",
+            "type": "Expression"
+          },
+          "format": {
+            "type": "DelimitedTextFormat",
+            "columnDelimiter": ",",
+            "rowDelimiter": "\n",
+            "firstRowAsHeader": true
+          }
+        }
+      }
+    },
+    {
+      "type": "Microsoft.DataFactory/factories/datasets",
+      "apiVersion": "2018-06-01",
+      "name": "[concat(parameters('factoryName'), '/AzureSqlDW1')]",
+      "properties": {
+        "linkedServiceName": {
+          "referenceName": "AzureSqlDW1",
+          "type": "LinkedServiceReference"
+        },
+        "parameters": {
+          "tableName": {
+            "type": "String"
+          },
+          "schemaName": {
+            "type": "String",
+            "defaultValue": "dbo"
+          }
+        },
+        "annotations": [],
+        "type": "AzureSqlDWTable",
+        "schema": [],
+        "typeProperties": {
+          "schema": {
+            "value": "@dataset().schemaName",
+            "type": "Expression"
+          },
+          "table": {
+            "value": "@dataset().tableName",
+            "type": "Expression"
+          }
+        }
+      }
+    },
+    {
+      "type": "Microsoft.DataFactory/factories/datasets",
+      "apiVersion": "2018-06-01",
+      "name": "[concat(parameters('factoryName'), '/CosmosDb1')]",
+      "properties": {
+        "linkedServiceName": {
+          "referenceName": "CosmosDb1",
+          "type": "LinkedServiceReference"
+        },
+        "parameters": {
+          "collectionName": {
+            "type": "String"
+          },
+          "databaseName": {
+            "type": "String",
+            "defaultValue": "cosmosdb"
+          }
+        },
+        "annotations": [],
+        "type": "CosmosDbSqlApiCollection",
+        "schema": {},
+        "typeProperties": {
+          "collectionName": {
+            "value": "@dataset().collectionName",
+            "type": "Expression"
+          }
+        }
+      }
+    },
+    {
+      "type": "Microsoft.DataFactory/factories/datasets",
+      "apiVersion": "2018-06-01",
+      "name": "[concat(parameters('factoryName'), '/RestService1')]",
+      "properties": {
+        "linkedServiceName": {
+          "referenceName": "RestService1",
+          "type": "LinkedServiceReference"
+        },
+        "parameters": {
+          "relativeUrl": {
+            "type": "String"
+          }
+        },
+        "annotations": [],
+        "type": "RestResource",
+        "typeProperties": {
+          "relativeUrl": {
+            "value": "@dataset().relativeUrl",
+            "type": "Expression"
+          }
+        },
+        "schema": {}
+      }
+    },
+    {
+      "type": "Microsoft.DataFactory/factories/datasets",
+      "apiVersion": "2018-06-01",
+      "name": "[concat(parameters('factoryName'), '/SftpServer1')]",
+      "properties": {
+        "linkedServiceName": {
+          "referenceName": "SftpServer1",
+          "type": "LinkedServiceReference"
+        },
+        "parameters": {
+          "folderPath": {
+            "type": "String"
+          },
+          "fileName": {
+            "type": "String"
+          }
+        },
+        "annotations": [],
+        "type": "FileShare",
+        "typeProperties": {
+          "folderPath": {
+            "value": "@dataset().folderPath",
+            "type": "Expression"
+          },
+          "fileName": {
+            "value": "@dataset().fileName",
+            "type": "Expression"
+          },
+          "format": {
+            "type": "TextFormat",
+            "columnDelimiter": ",",
+            "rowDelimiter": "\n",
+            "firstRowAsHeader": true
+          }
+        }
+      }
+    },
+    {
+      "type": "Microsoft.DataFactory/factories/datasets",
+      "apiVersion": "2018-06-01",
+      "name": "[concat(parameters('factoryName'), '/ParquetDataset')]",
+      "properties": {
+        "linkedServiceName": {
+          "referenceName": "AzureDataLakeStorageGen2",
+          "type": "LinkedServiceReference"
+        },
+        "parameters": {
+          "folderPath": {
+            "type": "String"
+          },
+          "fileName": {
+            "type": "String"
+          }
+        },
+        "annotations": [],
+        "type": "Parquet",
+        "typeProperties": {
+          "location": {
+            "type": "AzureBlobFSLocation",
+            "folderPath": {
+              "value": "@dataset().folderPath",
+              "type": "Expression"
+            },
+            "fileName": {
+              "value": "@dataset().fileName",
+              "type": "Expression"
+            },
+            "fileSystem": "data"
+          },
+          "compressionCodec": "snappy"
+        },
+        "schema": []
+      }
+    },
+    {
+      "type": "Microsoft.DataFactory/factories/datasets",
+      "apiVersion": "2018-06-01",
+      "name": "[concat(parameters('factoryName'), '/JsonDataset')]",
+      "properties": {
+        "linkedServiceName": {
+          "referenceName": "AzureBlobStorage1",
+          "type": "LinkedServiceReference"
+        },
+        "parameters": {
+          "folderPath": {
+            "type": "String"
+          },
+          "fileName": {
+            "type": "String"
+          }
+        },
+        "annotations": [],
+        "type": "Json",
+        "typeProperties": {
+          "location": {
+            "type": "AzureBlobStorageLocation",
+            "folderPath": {
+              "value": "@dataset().folderPath",
+              "type": "Expression"
+            },
+            "fileName": {
+              "value": "@dataset().fileName",
+              "type": "Expression"
+            },
+            "container": "data"
+          }
+        },
+        "schema": {}
+      }
+    },
+    {
+      "type": "Microsoft.DataFactory/factories/datasets",
+      "apiVersion": "2018-06-01",
+      "name": "[concat(parameters('factoryName'), '/AvroDataset')]",
+      "properties": {
+        "linkedServiceName": {
+          "referenceName": "AzureDataLakeStorageGen2",
+          "type": "LinkedServiceReference"
+        },
+        "parameters": {
+          "folderPath": {
+            "type": "String"
+          },
+          "fileName": {
+            "type": "String"
+          }
+        },
+        "annotations": [],
+        "type": "Avro",
+        "typeProperties": {
+          "location": {
+            "type": "AzureBlobFSLocation",
+            "folderPath": {
+              "value": "@dataset().folderPath",
+              "type": "Expression"
+            },
+            "fileName": {
+              "value": "@dataset().fileName",
+              "type": "Expression"
+            },
+            "fileSystem": "data"
+          }
+        },
+        "schema": {}
+      }
+    },
+    {
+      "type": "Microsoft.DataFactory/factories/datasets",
+      "apiVersion": "2018-06-01",
+      "name": "[concat(parameters('factoryName'), '/OrcDataset')]",
+      "properties": {
+        "linkedServiceName": {
+          "referenceName": "AzureDataLakeStorageGen2",
+          "type": "LinkedServiceReference"
+        },
+        "parameters": {
+          "folderPath": {
+            "type": "String"
+          },
+          "fileName": {
+            "type": "String"
+          }
+        },
+        "annotations": [],
+        "type": "Orc",
+        "typeProperties": {
+          "location": {
+            "type": "AzureBlobFSLocation",
+            "folderPath": {
+              "value": "@dataset().folderPath",
+              "type": "Expression"
+            },
+            "fileName": {
+              "value": "@dataset().fileName",
+              "type": "Expression"
+            },
+            "fileSystem": "data"
+          }
+        },
+        "schema": []
+      }
+    },
+    {
+      "type": "Microsoft.DataFactory/factories/datasets",
+      "apiVersion": "2018-06-01",
+      "name": "[concat(parameters('factoryName'), '/ExcelDataset')]",
+      "properties": {
+        "linkedServiceName": {
+          "referenceName": "AzureBlobStorage1",
+          "type": "LinkedServiceReference"
+        },
+        "parameters": {
+          "folderPath": {
+            "type": "String"
+          },
+          "fileName": {
+            "type": "String"
+          },
+          "sheetName": {
+            "type": "String",
+            "defaultValue": "Sheet1"
+          }
+        },
+        "annotations": [],
+        "type": "Excel",
+        "typeProperties": {
+          "location": {
+            "type": "AzureBlobStorageLocation",
+            "folderPath": {
+              "value": "@dataset().folderPath",
+              "type": "Expression"
+            },
+            "fileName": {
+              "value": "@dataset().fileName",
+              "type": "Expression"
+            },
+            "container": "data"
+          },
+          "sheetIndex": 0,
+          "firstRowAsHeader": true
+        }
+      }
+    },
+    {
+      "type": "Microsoft.DataFactory/factories/datasets",
+      "apiVersion": "2018-06-01",
+      "name": "[concat(parameters('factoryName'), '/XmlDataset')]",
+      "properties": {
+        "linkedServiceName": {
+          "referenceName": "AzureBlobStorage1",
+          "type": "LinkedServiceReference"
+        },
+        "parameters": {
+          "folderPath": {
+            "type": "String"
+          },
+          "fileName": {
+            "type": "String"
+          }
+        },
+        "annotations": [],
+        "type": "Xml",
+        "typeProperties": {
+          "location": {
+            "type": "AzureBlobStorageLocation",
+            "folderPath": {
+              "value": "@dataset().folderPath",
+              "type": "Expression"
+            },
+            "fileName": {
+              "value": "@dataset().fileName",
+              "type": "Expression"
+            },
+            "container": "data"
+          }
+        },
+        "schema": {}
+      }
+    },
+    {
+      "type": "Microsoft.DataFactory/factories/datasets",
+      "apiVersion": "2018-06-01",
+      "name": "[concat(parameters('factoryName'), '/BinaryDataset')]",
+      "properties": {
+        "linkedServiceName": {
+          "referenceName": "AzureBlobStorage1",
+          "type": "LinkedServiceReference"
+        },
+        "parameters": {
+          "folderPath": {
+            "type": "String"
+          },
+          "fileName": {
+            "type": "String"
+          }
+        },
+        "annotations": [],
+        "type": "Binary",
+        "typeProperties": {
+          "location": {
+            "type": "AzureBlobStorageLocation",
+            "folderPath": {
+              "value": "@dataset().folderPath",
+              "type": "Expression"
+            },
+            "fileName": {
+              "value": "@dataset().fileName",
+              "type": "Expression"
+            },
+            "container": "data"
+          },
+          "compression": {
+            "type": "ZipDeflate",
+            "level": "Optimal"
+          }
+        }
+      }
+    },
+    {
+      "type": "Microsoft.DataFactory/factories/datasets",
+      "apiVersion": "2018-06-01",
+      "name": "[concat(parameters('factoryName'), '/DelimitedTextDataset')]",
+      "properties": {
+        "linkedServiceName": {
+          "referenceName": "AzureBlobStorage1",
+          "type": "LinkedServiceReference"
+        },
+        "parameters": {
+          "folderPath": {
+            "type": "String"
+          },
+          "fileName": {
+            "type": "String"
+          }
+        },
+        "annotations": [],
+        "type": "DelimitedText",
+        "typeProperties": {
+          "location": {
+            "type": "AzureBlobStorageLocation",
+            "folderPath": {
+              "value": "@dataset().folderPath",
+              "type": "Expression"
+            },
+            "fileName": {
+              "value": "@dataset().fileName",
+              "type": "Expression"
+            },
+            "container": "data"
+          },
+          "columnDelimiter": ",",
+          "rowDelimiter": "\n",
+          "quoteChar": "\"",
+          "escapeChar": "\\",
+          "firstRowAsHeader": true,
+          "nullValue": ""
+        },
+        "schema": []
+      }
+    }
+  ]
+}
+
+

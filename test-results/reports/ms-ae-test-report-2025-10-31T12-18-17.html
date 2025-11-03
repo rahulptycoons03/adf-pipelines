@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>M&S SG Automation Test Report</title>
+<style>
+body{font-family:Arial,sans-serif;margin:20px;background-color:#f5f5f5;}
+.container{max-width:1200px;margin:0 auto;background:white;padding:20px;border-radius:8px;box-shadow:0 2px 10px rgba(0,0,0,0.1);}
+.header{text-align:center;color:#333;border-bottom:3px solid #4CAF50;padding-bottom:20px;margin-bottom:30px;}
+.test-info{background:#e8f5e8;padding:15px;border-radius:5px;margin:20px 0;}
+.step{margin:15px 0;padding:10px;border-left:4px solid #4CAF50;background:#f9f9f9;}
+.step.error{border-left-color:#f44336;background:#ffebee;}
+.step.warning{border-left-color:#ff9800;background:#fff3e0;}
+.timestamp{color:#666;font-size:.9em;}
+.screenshot{text-align:center;margin:20px 0;}
+.screenshot img{max-width:100%;border:1px solid #ddd;border-radius:5px;}
+.summary{background:#e3f2fd;padding:15px;border-radius:5px;margin:20px 0;}
+.status-pass{color:#4CAF50;font-weight:bold;}
+.status-fail{color:#f44336;font-weight:bold;}
+.details{background:#fafafa;padding:10px;border-radius:5px;margin:10px 0;font-family:monospace;white-space:pre-wrap;}
+</style>
+</head>
+<body>
+<div class="container">
+<div class="header"><h1>🧪 M&S SG Automation Test Report</h1><p class="timestamp">Generated on: 2025-10-31 12:18:17</p></div>
+<div class="test-info">
+<h2>📋 Test Summary</h2>
+<p><strong>Test Name:</strong> M&S SG Homepage Launch Test</p>
+<p><strong>Browser:</strong> Chrome (UI Mode)</p>
+<p><strong>URL:</strong> https://aeuatmnssingapore.corp.al-futtaim.com/en/fashion</p>
+<p><strong>Status:</strong> <span class="status-fail">❌ FAILED</span></p>
+<p><strong>Execution Time:</strong> 150604ms</p>
+<p><strong>Steps:</strong> 6 OK / 1 errors (total 7)</p>
+<p><strong>Browser:</strong> chrome 141.0.7390.123</p>
+</div>
+<div class="summary">
+<h3>📊 Test Results</h3>
+<p><strong>Page Title:</strong> </p>
+<p><strong>Final URL:</strong> </p>
+<p><strong>Screenshot:</strong> ms-ae-error-2025-10-31T12-18-14.png</p>
+<p><strong>Order ID:</strong> </p>
+<p><strong>Product Title:</strong> </p>
+<p><strong>Product URL:</strong> </p>
+<p><strong>CSV Output:</strong> test-results/msnauto_output.csv</p>
+</div>
+<h3>📝 Execution Steps</h3>
+<div class="step ">
+<strong>🚀 Test Started</strong>
+<p>Initializing M&amp;S SG automation test</p>
+<div class="timestamp">12:15:46 PM</div>
+</div>
+<div class="step ">
+<strong>⚙️ Chrome Setup</strong>
+<p>Configuring Chrome browser options</p>
+<div class="timestamp">12:15:46 PM</div>
+</div>
+<div class="step ">
+<strong>✅ WebDriver Ready</strong>
+<p>Chrome WebDriver created successfully</p>
+<div class="timestamp">12:15:48 PM</div>
+</div>
+<div class="step ">
+<strong>🌐 Navigation</strong>
+<p>Navigating to M&amp;S SG homepage</p>
+<div class="timestamp">12:15:48 PM</div>
+</div>
+<div class="step error">
+<strong>❌ Test Failed</strong>
+<p>Error: Message: no such element: Unable to locate element: {&quot;method&quot;:&quot;xpath&quot;,&quot;selector&quot;:&quot;//button[text()=&#39; Proceed To Validate Items In Stock &#39;]&quot;}
+  (Session info: chrome=141.0.7390.123); For documentation on this error, please visit: https://www.selenium.dev/documentation/webdriver/troubleshooting/errors#nosuchelementexception
+Stacktrace:
+	GetHandleVerifier [0x0x7ff621b5e8e5+80021]
+	GetHandleVerifier [0x0x7ff621b5e940+80112]
+	(No symbol) [0x0x7ff6218e060f]
+	(No symbol) [0x0x7ff621938854]
+	(No symbol) [0x0x7ff621938b1c]
+	(No symbol) [0x0x7ff62198c927]
+	(No symbol) [0x0x7ff62196126f]
+	(No symbol) [0x0x7ff62198968a]
+	(No symbol) [0x0x7ff621961003]
+	(No symbol) [0x0x7ff6219295d1]
+	(No symbol) [0x0x7ff62192a3f3]
+	GetHandleVerifier [0x0x7ff621e1dc7d+2960429]
+	GetHandleVerifier [0x0x7ff621e17f3a+2936554]
+	GetHandleVerifier [0x0x7ff621e38977+3070247]
+	GetHandleVerifier [0x0x7ff621b783ce+185214]
+	GetHandleVerifier [0x0x7ff621b7fe1f+216527]
+	GetHandleVerifier [0x0x7ff621b67b24+117460]
+	GetHandleVerifier [0x0x7ff621b67cdf+117903]
+	GetHandleVerifier [0x0x7ff621b4dbb8+11112]
+	BaseThreadInitThunk [0x0x7fffa06be8d7+23]
+	RtlUserThreadStart [0x0x7fffa1eac53c+44]
+</p>
+<div class="timestamp">12:18:14 PM</div>
+<div class="details">Traceback (most recent call last):
+  File &quot;C:\Users\rahul\projects\MnsAutomation\MnsAutomation.py&quot;, line 490, in main
+    continue_with_kibo_fulfilment(driver, &quot;31484&quot;, results)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File &quot;C:\Users\rahul\projects\MnsAutomation\MnsAutomation.py&quot;, line 415, in continue_with_kibo_fulfilment
+    proceed_validate = driver.find_element(By.XPATH, &quot;//button[text()=&#39; Proceed To Validate Items In Stock &#39;]&quot;)
+  File &quot;C:\Users\rahul\projects\MnsAutomation\.venv\Lib\site-packages\selenium\webdriver\remote\webdriver.py&quot;, line 926, in find_element
+    return self.execute(Command.FIND_ELEMENT, {&quot;using&quot;: by, &quot;value&quot;: value})[&quot;value&quot;]
+           ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File &quot;C:\Users\rahul\projects\MnsAutomation\.venv\Lib\site-packages\selenium\webdriver\remote\webdriver.py&quot;, line 458, in execute
+    self.error_handler.check_response(response)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^
+  File &quot;C:\Users\rahul\projects\MnsAutomation\.venv\Lib\site-packages\selenium\webdriver\remote\errorhandler.py&quot;, line 233, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.NoSuchElementException: Message: no such element: Unable to locate element: {&quot;method&quot;:&quot;xpath&quot;,&quot;selector&quot;:&quot;//button[text()=&#39; Proceed To Validate Items In Stock &#39;]&quot;}
+  (Session info: chrome=141.0.7390.123); For documentation on this error, please visit: https://www.selenium.dev/documentation/webdriver/troubleshooting/errors#nosuchelementexception
+Stacktrace:
+	GetHandleVerifier [0x0x7ff621b5e8e5+80021]
+	GetHandleVerifier [0x0x7ff621b5e940+80112]
+	(No symbol) [0x0x7ff6218e060f]
+	(No symbol) [0x0x7ff621938854]
+	(No symbol) [0x0x7ff621938b1c]
+	(No symbol) [0x0x7ff62198c927]
+	(No symbol) [0x0x7ff62196126f]
+	(No symbol) [0x0x7ff62198968a]
+	(No symbol) [0x0x7ff621961003]
+	(No symbol) [0x0x7ff6219295d1]
+	(No symbol) [0x0x7ff62192a3f3]
+	GetHandleVerifier [0x0x7ff621e1dc7d+2960429]
+	GetHandleVerifier [0x0x7ff621e17f3a+2936554]
+	GetHandleVerifier [0x0x7ff621e38977+3070247]
+	GetHandleVerifier [0x0x7ff621b783ce+185214]
+	GetHandleVerifier [0x0x7ff621b7fe1f+216527]
+	GetHandleVerifier [0x0x7ff621b67b24+117460]
+	GetHandleVerifier [0x0x7ff621b67cdf+117903]
+	GetHandleVerifier [0x0x7ff621b4dbb8+11112]
+	BaseThreadInitThunk [0x0x7fffa06be8d7+23]
+	RtlUserThreadStart [0x0x7fffa1eac53c+44]
+
+</div>
+</div>
+<div class="step ">
+<strong>📸 Error Screenshot</strong>
+<p>Error screenshot saved: ms-ae-error-2025-10-31T12-18-14.png</p>
+<div class="timestamp">12:18:14 PM</div>
+</div>
+<div class="step ">
+<strong>🔒 Cleanup</strong>
+<p>Browser closed after error</p>
+<div class="timestamp">12:18:17 PM</div>
+</div>
+<div class="screenshot">
+<h3>📸 Screenshot</h3>
+<img src="../screenshots/ms-ae-error-2025-10-31T12-18-14.png" alt="Test Screenshot">
+<p>Screenshot saved: ms-ae-error-2025-10-31T12-18-14.png</p>
+</div>
+<div class="test-info">
+<h3>🎯 Test Validation</h3>
+<p>✅ WebDriver initialized successfully</p>
+<p>✅ Navigated to M&S SG homepage</p>
+<p>✅ Page title retrieved: ""</p>
+<p>✅ URL validation passed</p>
+<p>✅ Kids section navigation (attempted)</p>
+<p>✅ Product search and selection (attempted)</p>
+<p>✅ Add to bag functionality (attempted)</p>
+<p>✅ Checkout flow (attempted)</p>
+<p>✅ Delivery options (attempted)</p>
+<p>✅ Screenshot captured successfully</p>
+<p>✅ Browser closed properly</p>
+</div>
+<footer style="text-align:center;margin-top:30px;color:#666;border-top:1px solid #eee;padding-top:20px;">
+<p>Generated by M&S SG Automation Suite | 2025-10-31 12:18:17</p>
+</footer>
+</div>
+</body>
+</html>

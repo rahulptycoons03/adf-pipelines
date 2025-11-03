@@ -1,0 +1,509 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.00.0.0",
+  "parameters": {
+    "factoryName": {
+      "type": "string",
+      "metadata": {
+        "description": "Name of the Data Factory"
+      }
+    }
+  },
+  "resources": [
+    {
+      "type": "Microsoft.DataFactory/factories/pipelines",
+      "apiVersion": "2018-06-01",
+      "name": "[concat(parameters('factoryName'), '/Pipeline_CompleteETL')]",
+      "properties": {
+        "activities": [
+          {
+            "name": "ExtractData",
+            "type": "Copy",
+            "dependsOn": [],
+            "policy": {
+              "timeout": "7.00:00:00",
+              "retry": 0,
+              "retryIntervalInSeconds": 30,
+              "secureOutput": false,
+              "secureInput": false
+            },
+            "userProperties": [],
+            "typeProperties": {
+              "source": {
+                "type": "BlobSource"
+              },
+              "sink": {
+                "type": "SqlSink"
+              }
+            },
+            "inputs": [
+              {
+                "referenceName": "AzureBlobStorage1",
+                "type": "DatasetReference"
+              }
+            ],
+            "outputs": [
+              {
+                "referenceName": "AzureSqlDatabase1",
+                "type": "DatasetReference",
+                "parameters": {
+                  "tableName": "StagingTable"
+                }
+              }
+            ]
+          },
+          {
+            "name": "TransformData",
+            "type": "ExecuteDataFlow",
+            "dependsOn": [
+              {
+                "activity": "ExtractData",
+                "dependencyConditions": [
+                  "Succeeded"
+                ]
+              }
+            ],
+            "policy": {
+              "timeout": "7.00:00:00",
+              "retry": 0,
+              "retryIntervalInSeconds": 30,
+              "secureOutput": false,
+              "secureInput": false
+            },
+            "userProperties": [],
+            "typeProperties": {
+              "dataflow": {
+                "referenceName": "DataFlow_TransformCustomers",
+                "type": "DataFlowReference"
+              },
+              "compute": {
+                "computeType": "General",
+                "coreCount": 8
+              }
+            }
+          },
+          {
+            "name": "LoadData",
+            "type": "Copy",
+            "dependsOn": [
+              {
+                "activity": "TransformData",
+                "dependencyConditions": [
+                  "Succeeded"
+                ]
+              }
+            ],
+            "policy": {
+              "timeout": "7.00:00:00",
+              "retry": 0,
+              "retryIntervalInSeconds": 30,
+              "secureOutput": false,
+              "secureInput": false
+            },
+            "userProperties": [],
+            "typeProperties": {
+              "source": {
+                "type": "SqlSource"
+              },
+              "sink": {
+                "type": "SqlSink"
+              }
+            },
+            "inputs": [
+              {
+                "referenceName": "AzureSqlDatabase1",
+                "type": "DatasetReference",
+                "parameters": {
+                  "tableName": "StagingTable"
+                }
+              }
+            ],
+            "outputs": [
+              {
+                "referenceName": "AzureSqlDatabase1",
+                "type": "DatasetReference",
+                "parameters": {
+                  "tableName": "TargetTable"
+                }
+              }
+            ]
+          }
+        ],
+        "annotations": []
+      }
+    },
+    {
+      "type": "Microsoft.DataFactory/factories/pipelines",
+      "apiVersion": "2018-06-01",
+      "name": "[concat(parameters('factoryName'), '/Pipeline_ParallelProcessing')]",
+      "properties": {
+        "activities": [
+          {
+            "name": "ProcessFilesInParallel",
+            "type": "ForEach",
+            "dependsOn": [],
+            "userProperties": [],
+            "typeProperties": {
+              "items": {
+                "value": "@pipeline().parameters.fileList",
+                "type": "Expression"
+              },
+              "isSequential": false,
+              "batchCount": 10,
+              "activities": [
+                {
+                  "name": "ProcessSingleFile",
+                  "type": "Copy",
+                  "dependsOn": [],
+                  "policy": {
+                    "timeout": "7.00:00:00",
+                    "retry": 0,
+                    "retryIntervalInSeconds": 30,
+                    "secureOutput": false,
+                    "secureInput": false
+                  },
+                  "userProperties": [],
+                  "typeProperties": {
+                    "source": {
+                      "type": "BlobSource"
+                    },
+                    "sink": {
+                      "type": "SqlSink"
+                    }
+                  },
+                  "inputs": [
+                    {
+                      "referenceName": "AzureBlobStorage1",
+                      "type": "DatasetReference",
+                      "parameters": {
+                        "fileName": {
+                          "value": "@item().fileName",
+                          "type": "Expression"
+                        }
+                      }
+                    }
+                  ],
+                  "outputs": [
+                    {
+                      "referenceName": "AzureSqlDatabase1",
+                      "type": "DatasetReference",
+                      "parameters": {
+                        "tableName": {
+                          "value": "@item().targetTable",
+                          "type": "Expression"
+                        }
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        ],
+        "parameters": {
+          "fileList": {
+            "type": "array",
+            "defaultValue": []
+          }
+        },
+        "annotations": []
+      }
+    },
+    {
+      "type": "Microsoft.DataFactory/factories/pipelines",
+      "apiVersion": "2018-06-01",
+      "name": "[concat(parameters('factoryName'), '/Pipeline_ErrorHandling')]",
+      "properties": {
+        "activities": [
+          {
+            "name": "TryCopy",
+            "type": "Copy",
+            "dependsOn": [],
+            "policy": {
+              "timeout": "7.00:00:00",
+              "retry": 3,
+              "retryIntervalInSeconds": 30,
+              "secureOutput": false,
+              "secureInput": false
+            },
+            "userProperties": [],
+            "typeProperties": {
+              "source": {
+                "type": "BlobSource"
+              },
+              "sink": {
+                "type": "SqlSink"
+              }
+            },
+            "inputs": [
+              {
+                "referenceName": "AzureBlobStorage1",
+                "type": "DatasetReference"
+              }
+            ],
+            "outputs": [
+              {
+                "referenceName": "AzureSqlDatabase1",
+                "type": "DatasetReference"
+              }
+            ]
+          },
+          {
+            "name": "SendErrorNotification",
+            "type": "WebActivity",
+            "dependsOn": [
+              {
+                "activity": "TryCopy",
+                "dependencyConditions": [
+                  "Failed"
+                ]
+              }
+            ],
+            "policy": {
+              "timeout": "7.00:00:00",
+              "retry": 0,
+              "retryIntervalInSeconds": 30,
+              "secureOutput": false,
+              "secureInput": false
+            },
+            "userProperties": [],
+            "typeProperties": {
+              "url": "@pipeline().parameters.alertWebhook",
+              "method": "POST",
+              "body": {
+                "value": "@json(concat('{\"message\":\"Pipeline failed\",\"runId\":\"', pipeline().RunId, '\",\"error\":\"', activity('TryCopy').Error.Message, '\"}'))",
+                "type": "Expression"
+              }
+            }
+          }
+        ],
+        "parameters": {
+          "alertWebhook": {
+            "type": "string",
+            "defaultValue": "https://hooks.slack.com/services/YOUR/WEBHOOK/URL"
+          }
+        },
+        "annotations": []
+      }
+    },
+    {
+      "type": "Microsoft.DataFactory/factories/pipelines",
+      "apiVersion": "2018-06-01",
+      "name": "[concat(parameters('factoryName'), '/Pipeline_ChainedPipelines')]",
+      "properties": {
+        "activities": [
+          {
+            "name": "ExecutePipeline1",
+            "type": "ExecutePipeline",
+            "dependsOn": [],
+            "policy": {
+              "timeout": "7.00:00:00",
+              "retry": 0,
+              "retryIntervalInSeconds": 30,
+              "secureOutput": false,
+              "secureInput": false
+            },
+            "userProperties": [],
+            "typeProperties": {
+              "pipeline": {
+                "referenceName": "@pipeline().parameters.pipeline1Name",
+                "type": "PipelineReference"
+              },
+              "waitOnCompletion": true
+            }
+          },
+          {
+            "name": "ExecutePipeline2",
+            "type": "ExecutePipeline",
+            "dependsOn": [
+              {
+                "activity": "ExecutePipeline1",
+                "dependencyConditions": [
+                  "Succeeded"
+                ]
+              }
+            ],
+            "policy": {
+              "timeout": "7.00:00:00",
+              "retry": 0,
+              "retryIntervalInSeconds": 30,
+              "secureOutput": false,
+              "secureInput": false
+            },
+            "userProperties": [],
+            "typeProperties": {
+              "pipeline": {
+                "referenceName": "@pipeline().parameters.pipeline2Name",
+                "type": "PipelineReference"
+              },
+              "waitOnCompletion": true,
+              "parameters": {
+                "inputData": {
+                  "value": "@activity('ExecutePipeline1').output.runId",
+                  "type": "Expression"
+                }
+              }
+            }
+          },
+          {
+            "name": "ExecutePipeline3",
+            "type": "ExecutePipeline",
+            "dependsOn": [
+              {
+                "activity": "ExecutePipeline2",
+                "dependencyConditions": [
+                  "Succeeded"
+                ]
+              }
+            ],
+            "policy": {
+              "timeout": "7.00:00:00",
+              "retry": 0,
+              "retryIntervalInSeconds": 30,
+              "secureOutput": false,
+              "secureInput": false
+            },
+            "userProperties": [],
+            "typeProperties": {
+              "pipeline": {
+                "referenceName": "@pipeline().parameters.pipeline3Name",
+                "type": "PipelineReference"
+              },
+              "waitOnCompletion": true
+            }
+          }
+        ],
+        "parameters": {
+          "pipeline1Name": {
+            "type": "string",
+            "defaultValue": "ExtractPipeline"
+          },
+          "pipeline2Name": {
+            "type": "string",
+            "defaultValue": "TransformPipeline"
+          },
+          "pipeline3Name": {
+            "type": "string",
+            "defaultValue": "LoadPipeline"
+          }
+        },
+        "annotations": []
+      }
+    },
+    {
+      "type": "Microsoft.DataFactory/factories/pipelines",
+      "apiVersion": "2018-06-01",
+      "name": "[concat(parameters('factoryName'), '/Pipeline_ConditionalBranching')]",
+      "properties": {
+        "activities": [
+          {
+            "name": "GetRecordCount",
+            "type": "Lookup",
+            "dependsOn": [],
+            "policy": {
+              "timeout": "7.00:00:00",
+              "retry": 0,
+              "retryIntervalInSeconds": 30,
+              "secureOutput": false,
+              "secureInput": false
+            },
+            "userProperties": [],
+            "typeProperties": {
+              "source": {
+                "type": "SqlSource",
+                "sqlReaderQuery": "SELECT COUNT(*) AS RecordCount FROM StagingTable"
+              },
+              "dataset": {
+                "referenceName": "AzureSqlDatabase1",
+                "type": "DatasetReference"
+              },
+              "firstRowOnly": true
+            }
+          },
+          {
+            "name": "CheckRecordCount",
+            "type": "IfCondition",
+            "dependsOn": [
+              {
+                "activity": "GetRecordCount",
+                "dependencyConditions": [
+                  "Succeeded"
+                ]
+              }
+            ],
+            "userProperties": [],
+            "typeProperties": {
+              "expression": {
+                "value": "@greater(int(activity('GetRecordCount').output.firstRow.RecordCount), 1000000)",
+                "type": "Expression"
+              },
+              "ifTrueActivities": [
+                {
+                  "name": "ProcessLargeDataset",
+                  "type": "ExecuteDataFlow",
+                  "dependsOn": [],
+                  "policy": {
+                    "timeout": "7.00:00:00",
+                    "retry": 0,
+                    "retryIntervalInSeconds": 30,
+                    "secureOutput": false,
+                    "secureInput": false
+                  },
+                  "userProperties": [],
+                  "typeProperties": {
+                    "dataflow": {
+                      "referenceName": "DataFlow_LargeDatasetProcessing",
+                      "type": "DataFlowReference"
+                    },
+                    "compute": {
+                      "computeType": "General",
+                      "coreCount": 16
+                    }
+                  }
+                }
+              ],
+              "ifFalseActivities": [
+                {
+                  "name": "ProcessSmallDataset",
+                  "type": "Copy",
+                  "dependsOn": [],
+                  "policy": {
+                    "timeout": "7.00:00:00",
+                    "retry": 0,
+                    "retryIntervalInSeconds": 30,
+                    "secureOutput": false,
+                    "secureInput": false
+                  },
+                  "userProperties": [],
+                  "typeProperties": {
+                    "source": {
+                      "type": "SqlSource"
+                    },
+                    "sink": {
+                      "type": "SqlSink"
+                    }
+                  },
+                  "inputs": [
+                    {
+                      "referenceName": "AzureSqlDatabase1",
+                      "type": "DatasetReference"
+                    }
+                  ],
+                  "outputs": [
+                    {
+                      "referenceName": "AzureSqlDatabase1",
+                      "type": "DatasetReference"
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        ],
+        "annotations": []
+      }
+    }
+  ]
+}
+
+

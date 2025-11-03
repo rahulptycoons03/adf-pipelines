@@ -1,0 +1,482 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "factoryName": {
+      "type": "string",
+      "metadata": {
+        "description": "Name of the Data Factory"
+      }
+    }
+  },
+  "resources": [
+    {
+      "type": "Microsoft.DataFactory/factories/pipelines",
+      "apiVersion": "2018-06-01",
+      "name": "[concat(parameters('factoryName'), '/EmployeeETL_BronzeIngestion')]",
+      "properties": {
+        "activities": [
+          {
+            "name": "IngestEmployeeDataToBronze",
+            "type": "Copy",
+            "dependsOn": [],
+            "policy": {
+              "timeout": "1.00:00:00",
+              "retry": 1,
+              "retryIntervalInSeconds": 30,
+              "secureOutput": false,
+              "secureInput": false
+            },
+            "userProperties": [],
+            "typeProperties": {
+              "source": {
+                "type": "DelimitedTextSource",
+                "storeSettings": {
+                  "type": "AzureBlobStorageReadSettings",
+                  "recursive": false
+                },
+                "formatSettings": {
+                  "type": "DelimitedTextReadSettings",
+                  "skipLineCount": 1,
+                  "firstRowAsHeader": true
+                }
+              },
+              "sink": {
+                "type": "DelimitedTextSink",
+                "storeSettings": {
+                  "type": "AzureBlobFSWriteSettings",
+                  "copyBehavior": "PreserveHierarchy"
+                },
+                "formatSettings": {
+                  "type": "DelimitedTextWriteSettings",
+                  "firstRowAsHeader": true,
+                  "quoteAllText": true
+                }
+              },
+              "enableStaging": false,
+              "dataIntegrationUnits": 2,
+              "translator": {
+                "type": "TabularTranslator",
+                "typeConversion": true,
+                "mappings": []
+              }
+            },
+            "inputs": [
+              {
+                "referenceName": "AzureBlobStorage1",
+                "type": "DatasetReference",
+                "parameters": {
+                  "folderPath": "@pipeline().parameters.sourceFolder",
+                  "fileName": "@pipeline().parameters.sourceFileName",
+                  "container": "@pipeline().parameters.sourceContainer"
+                }
+              }
+            ],
+            "outputs": [
+              {
+                "referenceName": "AzureDataLakeStorageGen2",
+                "type": "DatasetReference",
+                "parameters": {
+                  "folderPath": {
+                    "value": "@concat('bronze/employees/', formatDateTime(pipeline().TriggerTime, 'yyyy'), '/', formatDateTime(pipeline().TriggerTime, 'MM'), '/', formatDateTime(pipeline().TriggerTime, 'dd'))",
+                    "type": "Expression"
+                  },
+                  "fileName": {
+                    "value": "@concat('employees_', pipeline().RunId, '.csv')",
+                    "type": "Expression"
+                  },
+                  "container": "bronze"
+                }
+              }
+            ]
+          }
+        ],
+        "parameters": {
+          "sourceContainer": {
+            "type": "string",
+            "defaultValue": "raw-data"
+          },
+          "sourceFolder": {
+            "type": "string",
+            "defaultValue": "employees"
+          },
+          "sourceFileName": {
+            "type": "string",
+            "defaultValue": "employees.csv"
+          }
+        },
+        "annotations": [],
+        "description": "Ingest employee CSV file to Bronze container (raw data layer)"
+      }
+    },
+    {
+      "type": "Microsoft.DataFactory/factories/pipelines",
+      "apiVersion": "2018-06-01",
+      "name": "[concat(parameters('factoryName'), '/EmployeeETL_SilverCleansing')]",
+      "properties": {
+        "activities": [
+          {
+            "name": "CleanEmployeeDataToSilver",
+            "type": "Copy",
+            "dependsOn": [],
+            "policy": {
+              "timeout": "1.00:00:00",
+              "retry": 1,
+              "retryIntervalInSeconds": 30,
+              "secureOutput": false,
+              "secureInput": false
+            },
+            "userProperties": [],
+            "typeProperties": {
+              "source": {
+                "type": "DelimitedTextSource",
+                "storeSettings": {
+                  "type": "AzureBlobFSReadSettings",
+                  "recursive": true,
+                  "wildcardFileName": "employees_*.csv"
+                },
+                "formatSettings": {
+                  "type": "DelimitedTextReadSettings",
+                  "firstRowAsHeader": true
+                }
+              },
+              "sink": {
+                "type": "ParquetSink",
+                "storeSettings": {
+                  "type": "AzureBlobFSWriteSettings"
+                },
+                "formatSettings": {
+                  "type": "ParquetWriteSettings"
+                }
+              },
+              "enableStaging": false,
+              "dataIntegrationUnits": 2,
+              "translator": {
+                "type": "TabularTranslator",
+                "typeConversion": true,
+                "mappings": [
+                  {
+                    "source": {
+                      "path": "EmployeeID"
+                    },
+                    "sink": {
+                      "name": "employee_id",
+                      "type": "Int32"
+                    }
+                  },
+                  {
+                    "source": {
+                      "path": "FirstName"
+                    },
+                    "sink": {
+                      "name": "first_name"
+                    }
+                  },
+                  {
+                    "source": {
+                      "path": "LastName"
+                    },
+                    "sink": {
+                      "name": "last_name"
+                    }
+                  },
+                  {
+                    "source": {
+                      "path": "Email"
+                    },
+                    "sink": {
+                      "name": "email"
+                    }
+                  },
+                  {
+                    "source": {
+                      "path": "Department"
+                    },
+                    "sink": {
+                      "name": "department"
+                    }
+                  },
+                  {
+                    "source": {
+                      "path": "Position"
+                    },
+                    "sink": {
+                      "name": "position"
+                    }
+                  },
+                  {
+                    "source": {
+                      "path": "Salary"
+                    },
+                    "sink": {
+                      "name": "salary",
+                      "type": "Decimal"
+                    }
+                  },
+                  {
+                    "source": {
+                      "path": "JoinDate"
+                    },
+                    "sink": {
+                      "name": "join_date"
+                    }
+                  },
+                  {
+                    "source": {
+                      "path": "ManagerID"
+                    },
+                    "sink": {
+                      "name": "manager_id",
+                      "type": "Int32"
+                    }
+                  },
+                  {
+                    "source": {
+                      "path": "Status"
+                    },
+                    "sink": {
+                      "name": "status"
+                    }
+                  }
+                ]
+              }
+            },
+            "inputs": [
+              {
+                "referenceName": "AzureDataLakeStorageGen2",
+                "type": "DatasetReference",
+                "parameters": {
+                  "folderPath": {
+                    "value": "@concat('bronze/employees/', formatDateTime(pipeline().TriggerTime, 'yyyy'), '/', formatDateTime(pipeline().TriggerTime, 'MM'), '/', formatDateTime(pipeline().TriggerTime, 'dd'))",
+                    "type": "Expression"
+                  },
+                  "fileName": "",
+                  "container": "bronze"
+                }
+              }
+            ],
+            "outputs": [
+              {
+                "referenceName": "AzureDataLakeStorageGen2",
+                "type": "DatasetReference",
+                "parameters": {
+                  "folderPath": {
+                    "value": "@concat('silver/employees/', formatDateTime(pipeline().TriggerTime, 'yyyy'), '/', formatDateTime(pipeline().TriggerTime, 'MM'), '/', formatDateTime(pipeline().TriggerTime, 'dd'))",
+                    "type": "Expression"
+                  },
+                  "fileName": {
+                    "value": "@concat('employees_cleaned_', pipeline().RunId, '.parquet')",
+                    "type": "Expression"
+                  },
+                  "container": "silver"
+                }
+              }
+            ]
+          }
+        ],
+        "parameters": {},
+        "annotations": [],
+        "description": "Clean and transform employee data from Bronze to Silver (Parquet format)"
+      }
+    },
+    {
+      "type": "Microsoft.DataFactory/factories/pipelines",
+      "apiVersion": "2018-06-01",
+      "name": "[concat(parameters('factoryName'), '/EmployeeETL_GoldAggregation')]",
+      "properties": {
+        "activities": [
+          {
+            "name": "AggregateEmployeeDataToGold",
+            "type": "Copy",
+            "dependsOn": [],
+            "policy": {
+              "timeout": "1.00:00:00",
+              "retry": 1,
+              "retryIntervalInSeconds": 30,
+              "secureOutput": false,
+              "secureInput": false
+            },
+            "userProperties": [],
+            "typeProperties": {
+              "source": {
+                "type": "ParquetSource",
+                "storeSettings": {
+                  "type": "AzureBlobFSReadSettings",
+                  "recursive": true,
+                  "wildcardFileName": "employees_cleaned_*.parquet"
+                },
+                "formatSettings": {
+                  "type": "ParquetReadSettings"
+                }
+              },
+              "sink": {
+                "type": "ParquetSink",
+                "storeSettings": {
+                  "type": "AzureBlobFSWriteSettings"
+                },
+                "formatSettings": {
+                  "type": "ParquetWriteSettings"
+                }
+              },
+              "enableStaging": false,
+              "dataIntegrationUnits": 2,
+              "translator": {
+                "type": "TabularTranslator",
+                "mappings": []
+              }
+            },
+            "inputs": [
+              {
+                "referenceName": "AzureDataLakeStorageGen2",
+                "type": "DatasetReference",
+                "parameters": {
+                  "folderPath": {
+                    "value": "@concat('silver/employees/', formatDateTime(pipeline().TriggerTime, 'yyyy'), '/', formatDateTime(pipeline().TriggerTime, 'MM'), '/', formatDateTime(pipeline().TriggerTime, 'dd'))",
+                    "type": "Expression"
+                  },
+                  "fileName": "",
+                  "container": "silver"
+                }
+              }
+            ],
+            "outputs": [
+              {
+                "referenceName": "AzureDataLakeStorageGen2",
+                "type": "DatasetReference",
+                "parameters": {
+                  "folderPath": {
+                    "value": "@concat('gold/employees/', formatDateTime(pipeline().TriggerTime, 'yyyy'), '/', formatDateTime(pipeline().TriggerTime, 'MM'), '/', formatDateTime(pipeline().TriggerTime, 'dd'))",
+                    "type": "Expression"
+                  },
+                  "fileName": {
+                    "value": "@concat('employees_aggregated_', pipeline().RunId, '.parquet')",
+                    "type": "Expression"
+                  },
+                  "container": "gold"
+                }
+              }
+            ]
+          }
+        ],
+        "parameters": {},
+        "annotations": [],
+        "description": "Aggregate employee data to Gold layer (business-ready, enriched data)"
+      }
+    },
+    {
+      "type": "Microsoft.DataFactory/factories/pipelines",
+      "apiVersion": "2018-06-01",
+      "name": "[concat(parameters('factoryName'), '/EmployeeETL_CompletePipeline')]",
+      "properties": {
+        "activities": [
+          {
+            "name": "IngestToBronze",
+            "type": "ExecutePipeline",
+            "dependsOn": [],
+            "policy": {
+              "timeout": "7.00:00:00",
+              "retry": 0,
+              "retryIntervalInSeconds": 30,
+              "secureOutput": false,
+              "secureInput": false
+            },
+            "userProperties": [],
+            "typeProperties": {
+              "pipeline": {
+                "referenceName": "EmployeeETL_BronzeIngestion",
+                "type": "PipelineReference"
+              },
+              "waitOnCompletion": true,
+              "parameters": {
+                "sourceContainer": {
+                  "value": "@pipeline().parameters.sourceContainer",
+                  "type": "Expression"
+                },
+                "sourceFolder": {
+                  "value": "@pipeline().parameters.sourceFolder",
+                  "type": "Expression"
+                },
+                "sourceFileName": {
+                  "value": "@pipeline().parameters.sourceFileName",
+                  "type": "Expression"
+                }
+              }
+            }
+          },
+          {
+            "name": "CleanToSilver",
+            "type": "ExecutePipeline",
+            "dependsOn": [
+              {
+                "activity": "IngestToBronze",
+                "dependencyConditions": [
+                  "Succeeded"
+                ]
+              }
+            ],
+            "policy": {
+              "timeout": "7.00:00:00",
+              "retry": 0,
+              "retryIntervalInSeconds": 30,
+              "secureOutput": false,
+              "secureInput": false
+            },
+            "userProperties": [],
+            "typeProperties": {
+              "pipeline": {
+                "referenceName": "EmployeeETL_SilverCleansing",
+                "type": "PipelineReference"
+              },
+              "waitOnCompletion": true
+            }
+          },
+          {
+            "name": "AggregateToGold",
+            "type": "ExecutePipeline",
+            "dependsOn": [
+              {
+                "activity": "CleanToSilver",
+                "dependencyConditions": [
+                  "Succeeded"
+                ]
+              }
+            ],
+            "policy": {
+              "timeout": "7.00:00:00",
+              "retry": 0,
+              "retryIntervalInSeconds": 30,
+              "secureOutput": false,
+              "secureInput": false
+            },
+            "userProperties": [],
+            "typeProperties": {
+              "pipeline": {
+                "referenceName": "EmployeeETL_GoldAggregation",
+                "type": "PipelineReference"
+              },
+              "waitOnCompletion": true
+            }
+          }
+        ],
+        "parameters": {
+          "sourceContainer": {
+            "type": "string",
+            "defaultValue": "raw-data"
+          },
+          "sourceFolder": {
+            "type": "string",
+            "defaultValue": "employees"
+          },
+          "sourceFileName": {
+            "type": "string",
+            "defaultValue": "employees.csv"
+          }
+        },
+        "annotations": [],
+        "description": "Complete Employee ETL Pipeline: Ingest -> Clean -> Aggregate (Bronze -> Silver -> Gold)"
+      }
+    }
+  ]
+}
+
+

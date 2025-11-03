@@ -1,0 +1,702 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "factoryName": {
+      "type": "string",
+      "metadata": {
+        "description": "Name of the Data Factory"
+      }
+    }
+  },
+  "resources": [
+    {
+      "type": "Microsoft.DataFactory/factories/pipelines",
+      "apiVersion": "2018-06-01",
+      "name": "[concat(parameters('factoryName'), '/DataFlow_TransformWithMapping')]",
+      "properties": {
+        "activities": [
+          {
+            "name": "TransformDataFlow",
+            "type": "ExecuteDataFlow",
+            "dependsOn": [],
+            "policy": {
+              "timeout": "7.00:00:00",
+              "retry": 0,
+              "retryIntervalInSeconds": 30,
+              "secureOutput": false,
+              "secureInput": false
+            },
+            "userProperties": [],
+            "typeProperties": {
+              "dataflow": {
+                "referenceName": "DataFlow_TransformCustomers",
+                "type": "DataFlowReference"
+              },
+              "compute": {
+                "computeType": "General",
+                "coreCount": 8,
+                "computeLocation": "AutoResolve"
+              },
+              "traceLevel": "Fine"
+            }
+          }
+        ],
+        "annotations": []
+      }
+    },
+    {
+      "type": "Microsoft.DataFactory/factories/pipelines",
+      "apiVersion": "2018-06-01",
+      "name": "[concat(parameters('factoryName'), '/DataFlow_TransformWithWrangling')]",
+      "properties": {
+        "activities": [
+          {
+            "name": "WranglingDataFlow",
+            "type": "ExecuteWranglingDataFlow",
+            "dependsOn": [],
+            "policy": {
+              "timeout": "7.00:00:00",
+              "retry": 0,
+              "retryIntervalInSeconds": 30,
+              "secureOutput": false,
+              "secureInput": false
+            },
+            "userProperties": [],
+            "typeProperties": {
+              "dataflow": {
+                "referenceName": "DataFlow_WranglingCustomers",
+                "type": "DataFlowReference"
+              },
+              "compute": {
+                "computeType": "General",
+                "coreCount": 8,
+                "computeLocation": "AutoResolve"
+              },
+              "queries": [
+                {
+                  "queryName": "CleanCustomerData",
+                  "dataflowSinks": [
+                    {
+                      "name": "CleanedCustomers",
+                      "dataset": {
+                        "referenceName": "AzureSqlDatabase1",
+                        "type": "DatasetReference"
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        ],
+        "annotations": []
+      }
+    },
+    {
+      "type": "Microsoft.DataFactory/factories/pipelines",
+      "apiVersion": "2018-06-01",
+      "name": "[concat(parameters('factoryName'), '/StoredProcedure_ExecuteTransformations')]",
+      "properties": {
+        "activities": [
+          {
+            "name": "ExecuteStoredProcedure",
+            "type": "SqlServerStoredProcedure",
+            "dependsOn": [],
+            "policy": {
+              "timeout": "7.00:00:00",
+              "retry": 0,
+              "retryIntervalInSeconds": 30,
+              "secureOutput": false,
+              "secureInput": false
+            },
+            "userProperties": [],
+            "typeProperties": {
+              "storedProcedureName": "[concat('[', pipeline().parameters.schemaName, '].[', pipeline().parameters.storedProcedureName, ']')]",
+              "storedProcedureParameters": {
+                "RunDate": {
+                  "value": {
+                    "value": "@formatDateTime(pipeline().TriggerTime, 'yyyy-MM-dd')",
+                    "type": "Expression"
+                  },
+                  "type": "String"
+                },
+                "BatchId": {
+                  "value": {
+                    "value": "@pipeline().RunId",
+                    "type": "Expression"
+                  },
+                  "type": "String"
+                }
+              }
+            },
+            "linkedServiceName": {
+              "referenceName": "AzureSqlDatabase1",
+              "type": "LinkedServiceReference"
+            }
+          }
+        ],
+        "parameters": {
+          "schemaName": {
+            "type": "string",
+            "defaultValue": "dbo"
+          },
+          "storedProcedureName": {
+            "type": "string",
+            "defaultValue": "sp_TransformCustomerData"
+          }
+        },
+        "annotations": []
+      }
+    },
+    {
+      "type": "Microsoft.DataFactory/factories/pipelines",
+      "apiVersion": "2018-06-01",
+      "name": "[concat(parameters('factoryName'), '/Databricks_TransformData')]",
+      "properties": {
+        "activities": [
+          {
+            "name": "RunDatabricksNotebook",
+            "type": "DatabricksNotebook",
+            "dependsOn": [],
+            "policy": {
+              "timeout": "7.00:00:00",
+              "retry": 0,
+              "retryIntervalInSeconds": 30,
+              "secureOutput": false,
+              "secureInput": false
+            },
+            "userProperties": [],
+            "typeProperties": {
+              "notebookPath": "/Shared/TransformCustomerData",
+              "baseParameters": {
+                "input_path": {
+                  "value": "@pipeline().parameters.inputPath",
+                  "type": "Expression"
+                },
+                "output_path": {
+                  "value": "@pipeline().parameters.outputPath",
+                  "type": "Expression"
+                },
+                "run_date": {
+                  "value": "@formatDateTime(pipeline().TriggerTime, 'yyyy-MM-dd')",
+                  "type": "Expression"
+                }
+              }
+            },
+            "linkedServiceName": {
+              "referenceName": "AzureDatabricks1",
+              "type": "LinkedServiceReference"
+            }
+          }
+        ],
+        "parameters": {
+          "inputPath": {
+            "type": "string",
+            "defaultValue": "/mnt/raw/customers"
+          },
+          "outputPath": {
+            "type": "string",
+            "defaultValue": "/mnt/processed/customers"
+          }
+        },
+        "annotations": []
+      }
+    },
+    {
+      "type": "Microsoft.DataFactory/factories/pipelines",
+      "apiVersion": "2018-06-01",
+      "name": "[concat(parameters('factoryName'), '/Databricks_JarActivity')]",
+      "properties": {
+        "activities": [
+          {
+            "name": "RunDatabricksJar",
+            "type": "DatabricksSparkJar",
+            "dependsOn": [],
+            "policy": {
+              "timeout": "7.00:00:00",
+              "retry": 0,
+              "retryIntervalInSeconds": 30,
+              "secureOutput": false,
+              "secureInput": false
+            },
+            "userProperties": [],
+            "typeProperties": {
+              "mainClassName": "com.contoso.CustomerTransformer",
+              "parameters": [
+                "@pipeline().parameters.inputPath",
+                "@pipeline().parameters.outputPath"
+              ],
+              "libraries": [
+                {
+                  "jar": "dbfs:/libraries/customer-transformer.jar"
+                }
+              ]
+            },
+            "linkedServiceName": {
+              "referenceName": "AzureDatabricks1",
+              "type": "LinkedServiceReference"
+            }
+          }
+        ],
+        "parameters": {
+          "inputPath": {
+            "type": "string",
+            "defaultValue": "/mnt/raw/customers"
+          },
+          "outputPath": {
+            "type": "string",
+            "defaultValue": "/mnt/processed/customers"
+          }
+        },
+        "annotations": []
+      }
+    },
+    {
+      "type": "Microsoft.DataFactory/factories/pipelines",
+      "apiVersion": "2018-06-01",
+      "name": "[concat(parameters('factoryName'), '/Databricks_PythonActivity')]",
+      "properties": {
+        "activities": [
+          {
+            "name": "RunDatabricksPython",
+            "type": "DatabricksSparkPython",
+            "dependsOn": [],
+            "policy": {
+              "timeout": "7.00:00:00",
+              "retry": 0,
+              "retryIntervalInSeconds": 30,
+              "secureOutput": false,
+              "secureInput": false
+            },
+            "userProperties": [],
+            "typeProperties": {
+              "pythonFile": "dbfs:/scripts/transform_customers.py",
+              "parameters": [
+                "@pipeline().parameters.inputPath",
+                "@pipeline().parameters.outputPath"
+              ],
+              "libraries": [
+                {
+                  "pypi": {
+                    "package": "pandas==1.3.0"
+                  }
+                }
+              ]
+            },
+            "linkedServiceName": {
+              "referenceName": "AzureDatabricks1",
+              "type": "LinkedServiceReference"
+            }
+          }
+        ],
+        "parameters": {
+          "inputPath": {
+            "type": "string",
+            "defaultValue": "/mnt/raw/customers"
+          },
+          "outputPath": {
+            "type": "string",
+            "defaultValue": "/mnt/processed/customers"
+          }
+        },
+        "annotations": []
+      }
+    },
+    {
+      "type": "Microsoft.DataFactory/factories/pipelines",
+      "apiVersion": "2018-06-01",
+      "name": "[concat(parameters('factoryName'), '/HDInsight_SparkTransform')]",
+      "properties": {
+        "activities": [
+          {
+            "name": "RunSparkJob",
+            "type": "HDInsightSpark",
+            "dependsOn": [],
+            "policy": {
+              "timeout": "7.00:00:00",
+              "retry": 0,
+              "retryIntervalInSeconds": 30,
+              "secureOutput": false,
+              "secureInput": false
+            },
+            "userProperties": [],
+            "typeProperties": {
+              "rootPath": "/jobs",
+              "entryFilePath": "transform_customers.py",
+              "getDebugInfo": "Always",
+              "arguments": [
+                "@pipeline().parameters.inputPath",
+                "@pipeline().parameters.outputPath"
+              ]
+            },
+            "linkedServiceName": {
+              "referenceName": "HDInsightLinkedService",
+              "type": "LinkedServiceReference"
+            }
+          }
+        ],
+        "parameters": {
+          "inputPath": {
+            "type": "string",
+            "defaultValue": "/input/customers"
+          },
+          "outputPath": {
+            "type": "string",
+            "defaultValue": "/output/customers"
+          }
+        },
+        "annotations": []
+      }
+    },
+    {
+      "type": "Microsoft.DataFactory/factories/pipelines",
+      "apiVersion": "2018-06-01",
+      "name": "[concat(parameters('factoryName'), '/HDInsight_PigTransform')]",
+      "properties": {
+        "activities": [
+          {
+            "name": "RunPigJob",
+            "type": "HDInsightPig",
+            "dependsOn": [],
+            "policy": {
+              "timeout": "7.00:00:00",
+              "retry": 0,
+              "retryIntervalInSeconds": 30,
+              "secureOutput": false,
+              "secureInput": false
+            },
+            "userProperties": [],
+            "typeProperties": {
+              "scriptPath": "/scripts/transform.pig",
+              "scriptLinkedService": {
+                "referenceName": "AzureBlobStorage1",
+                "type": "LinkedServiceReference"
+              },
+              "defines": {
+                "input_path": "@pipeline().parameters.inputPath",
+                "output_path": "@pipeline().parameters.outputPath"
+              }
+            },
+            "linkedServiceName": {
+              "referenceName": "HDInsightLinkedService",
+              "type": "LinkedServiceReference"
+            }
+          }
+        ],
+        "parameters": {
+          "inputPath": {
+            "type": "string",
+            "defaultValue": "/input/data"
+          },
+          "outputPath": {
+            "type": "string",
+            "defaultValue": "/output/data"
+          }
+        },
+        "annotations": []
+      }
+    },
+    {
+      "type": "Microsoft.DataFactory/factories/pipelines",
+      "apiVersion": "2018-06-01",
+      "name": "[concat(parameters('factoryName'), '/HDInsight_HiveTransform')]",
+      "properties": {
+        "activities": [
+          {
+            "name": "RunHiveJob",
+            "type": "HDInsightHive",
+            "dependsOn": [],
+            "policy": {
+              "timeout": "7.00:00:00",
+              "retry": 0,
+              "retryIntervalInSeconds": 30,
+              "secureOutput": false,
+              "secureInput": false
+            },
+            "userProperties": [],
+            "typeProperties": {
+              "scriptPath": "/scripts/transform.hql",
+              "scriptLinkedService": {
+                "referenceName": "AzureBlobStorage1",
+                "type": "LinkedServiceReference"
+              },
+              "defines": {
+                "input_path": "@pipeline().parameters.inputPath",
+                "output_path": "@pipeline().parameters.outputPath"
+              }
+            },
+            "linkedServiceName": {
+              "referenceName": "HDInsightLinkedService",
+              "type": "LinkedServiceReference"
+            }
+          }
+        ],
+        "parameters": {
+          "inputPath": {
+            "type": "string",
+            "defaultValue": "/input/data"
+          },
+          "outputPath": {
+            "type": "string",
+            "defaultValue": "/output/data"
+          }
+        },
+        "annotations": []
+      }
+    },
+    {
+      "type": "Microsoft.DataFactory/factories/pipelines",
+      "apiVersion": "2018-06-01",
+      "name": "[concat(parameters('factoryName'), '/HDInsight_MapReduceTransform')]",
+      "properties": {
+        "activities": [
+          {
+            "name": "RunMapReduceJob",
+            "type": "HDInsightMapReduce",
+            "dependsOn": [],
+            "policy": {
+              "timeout": "7.00:00:00",
+              "retry": 0,
+              "retryIntervalInSeconds": 30,
+              "secureOutput": false,
+              "secureInput": false
+            },
+            "userProperties": [],
+            "typeProperties": {
+              "classPaths": [
+                "/lib/customer-transformer.jar"
+              ],
+              "jarLinkedService": {
+                "referenceName": "AzureBlobStorage1",
+                "type": "LinkedServiceReference"
+              },
+              "jarLibs": [
+                "/lib/commons-lang3-3.9.jar"
+              ],
+              "arguments": [
+                "@pipeline().parameters.inputPath",
+                "@pipeline().parameters.outputPath"
+              ],
+              "getDebugInfo": "Always"
+            },
+            "linkedServiceName": {
+              "referenceName": "HDInsightLinkedService",
+              "type": "LinkedServiceReference"
+            }
+          }
+        ],
+        "parameters": {
+          "inputPath": {
+            "type": "string",
+            "defaultValue": "/input/data"
+          },
+          "outputPath": {
+            "type": "string",
+            "defaultValue": "/output/data"
+          }
+        },
+        "annotations": []
+      }
+    },
+    {
+      "type": "Microsoft.DataFactory/factories/pipelines",
+      "apiVersion": "2018-06-01",
+      "name": "[concat(parameters('factoryName'), '/HDInsight_StreamingTransform')]",
+      "properties": {
+        "activities": [
+          {
+            "name": "RunStreamingJob",
+            "type": "HDInsightStreaming",
+            "dependsOn": [],
+            "policy": {
+              "timeout": "7.00:00:00",
+              "retry": 0,
+              "retryIntervalInSeconds": 30,
+              "secureOutput": false,
+              "secureInput": false
+            },
+            "userProperties": [],
+            "typeProperties": {
+              "mapper": "cat.exe",
+              "reducer": "wc.exe",
+              "input": "/input/data.txt",
+              "output": "/output/data",
+              "filePaths": [
+                "/scripts/mapper.exe",
+                "/scripts/reducer.exe"
+              ],
+              "fileLinkedService": {
+                "referenceName": "AzureBlobStorage1",
+                "type": "LinkedServiceReference"
+              },
+              "combiner": "",
+              "commandEnvironment": [],
+              "getDebugInfo": "Always",
+              "arguments": []
+            },
+            "linkedServiceName": {
+              "referenceName": "HDInsightLinkedService",
+              "type": "LinkedServiceReference"
+            }
+          }
+        ],
+        "annotations": []
+      }
+    },
+    {
+      "type": "Microsoft.DataFactory/factories/pipelines",
+      "apiVersion": "2018-06-01",
+      "name": "[concat(parameters('factoryName'), '/AzureML_ExecuteBatchPrediction')]",
+      "properties": {
+        "activities": [
+          {
+            "name": "ExecuteMLBatchPrediction",
+            "type": "AzureMLBatchExecution",
+            "dependsOn": [],
+            "policy": {
+              "timeout": "7.00:00:00",
+              "retry": 0,
+              "retryIntervalInSeconds": 30,
+              "secureOutput": false,
+              "secureInput": false
+            },
+            "userProperties": [],
+            "typeProperties": {
+              "webServiceInputs": {
+                "input1": {
+                  "convertedValue": "@pipeline().parameters.inputData",
+                  "type": "String"
+                }
+              },
+              "webServiceOutputs": {
+                "output1": {
+                  "convertedValue": "@pipeline().parameters.outputData",
+                  "type": "String"
+                }
+              },
+              "globalParameters": {
+                "param1": "@pipeline().parameters.mlParameter"
+              }
+            },
+            "linkedServiceName": {
+              "referenceName": "AzureML1",
+              "type": "LinkedServiceReference"
+            }
+          }
+        ],
+        "parameters": {
+          "inputData": {
+            "type": "string",
+            "defaultValue": "https://storageaccount.blob.core.windows.net/data/input.csv"
+          },
+          "outputData": {
+            "type": "string",
+            "defaultValue": "https://storageaccount.blob.core.windows.net/data/output.csv"
+          },
+          "mlParameter": {
+            "type": "string",
+            "defaultValue": "value1"
+          }
+        },
+        "annotations": []
+      }
+    },
+    {
+      "type": "Microsoft.DataFactory/factories/pipelines",
+      "apiVersion": "2018-06-01",
+      "name": "[concat(parameters('factoryName'), '/AzureML_UpdateResource')]",
+      "properties": {
+        "activities": [
+          {
+            "name": "UpdateMLResource",
+            "type": "AzureMLUpdateResource",
+            "dependsOn": [],
+            "policy": {
+              "timeout": "7.00:00:00",
+              "retry": 0,
+              "retryIntervalInSeconds": 30,
+              "secureOutput": false,
+              "secureInput": false
+            },
+            "userProperties": [],
+            "typeProperties": {
+              "trainedModelName": "@pipeline().parameters.modelName",
+              "trainedModelLinkedServiceName": {
+                "referenceName": "AzureBlobStorage1",
+                "type": "LinkedServiceReference"
+              },
+              "trainedModelFilePath": "@pipeline().parameters.modelPath"
+            },
+            "linkedServiceName": {
+              "referenceName": "AzureML1",
+              "type": "LinkedServiceReference"
+            }
+          }
+        ],
+        "parameters": {
+          "modelName": {
+            "type": "string",
+            "defaultValue": "customer-churn-model"
+          },
+          "modelPath": {
+            "type": "string",
+            "defaultValue": "/models/model.pkl"
+          }
+        },
+        "annotations": []
+      }
+    },
+    {
+      "type": "Microsoft.DataFactory/factories/pipelines",
+      "apiVersion": "2018-06-01",
+      "name": "[concat(parameters('factoryName'), '/Script_TransformWithPython')]",
+      "properties": {
+        "activities": [
+          {
+            "name": "ExecutePythonScript",
+            "type": "Script",
+            "dependsOn": [],
+            "policy": {
+              "timeout": "7.00:00:00",
+              "retry": 0,
+              "retryIntervalInSeconds": 30,
+              "secureOutput": false,
+              "secureInput": false
+            },
+            "userProperties": [],
+            "typeProperties": {
+              "scripts": [
+                {
+                  "type": "Query",
+                  "text": {
+                    "value": "@concat('import pandas as pd\nimport json\n\ndata = pd.read_csv(\"', pipeline().parameters.inputPath, '\")\n# Transform data\ndata_transformed = data.groupby(\"category\").sum()\ndata_transformed.to_csv(\"', pipeline().parameters.outputPath, '\")')",
+                    "type": "Expression"
+                  }
+                }
+              ],
+              "loggingLevel": "Information"
+            },
+            "linkedServiceName": {
+              "referenceName": "AzureSqlDatabase1",
+              "type": "LinkedServiceReference"
+            }
+          }
+        ],
+        "parameters": {
+          "inputPath": {
+            "type": "string",
+            "defaultValue": "/data/input.csv"
+          },
+          "outputPath": {
+            "type": "string",
+            "defaultValue": "/data/output.csv"
+          }
+        },
+        "annotations": []
+      }
+    }
+  ]
+}
+
+

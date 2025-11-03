@@ -1,0 +1,1051 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "factoryName": {
+      "type": "string",
+      "metadata": {
+        "description": "Name of the Data Factory"
+      }
+    }
+  },
+  "resources": [
+    {
+      "type": "Microsoft.DataFactory/factories/pipelines",
+      "apiVersion": "2018-06-01",
+      "name": "[concat(parameters('factoryName'), '/Pipeline_IfCondition')]",
+      "properties": {
+        "activities": [
+          {
+            "name": "CheckDataQuality",
+            "type": "IfCondition",
+            "dependsOn": [],
+            "userProperties": [],
+            "typeProperties": {
+              "expression": {
+                "value": "@greater(int(activity('LookupRecordCount').output.firstRow.Count), 0)",
+                "type": "Expression"
+              },
+              "ifTrueActivities": [
+                {
+                  "name": "CopyGoodData",
+                  "type": "Copy",
+                  "dependsOn": [],
+                  "policy": {
+                    "timeout": "7.00:00:00",
+                    "retry": 0,
+                    "retryIntervalInSeconds": 30,
+                    "secureOutput": false,
+                    "secureInput": false
+                  },
+                  "userProperties": [],
+                  "typeProperties": {
+                    "source": {
+                      "type": "BlobSource"
+                    },
+                    "sink": {
+                      "type": "SqlSink"
+                    }
+                  },
+                  "inputs": [
+                    {
+                      "referenceName": "AzureBlobStorage1",
+                      "type": "DatasetReference"
+                    }
+                  ],
+                  "outputs": [
+                    {
+                      "referenceName": "AzureSqlDatabase1",
+                      "type": "DatasetReference"
+                    }
+                  ]
+                }
+              ],
+              "ifFalseActivities": [
+                {
+                  "name": "SendAlert",
+                  "type": "WebActivity",
+                  "dependsOn": [],
+                  "policy": {
+                    "timeout": "7.00:00:00",
+                    "retry": 0,
+                    "retryIntervalInSeconds": 30,
+                    "secureOutput": false,
+                    "secureInput": false
+                  },
+                  "userProperties": [],
+                  "typeProperties": {
+                    "url": "@pipeline().parameters.alertWebhook",
+                    "method": "POST",
+                    "body": {
+                      "value": "@concat('{\"message\":\"No data found for processing\",\"runId\":\"', pipeline().RunId, '\"}')",
+                      "type": "Expression"
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "name": "LookupRecordCount",
+            "type": "Lookup",
+            "dependsOn": [],
+            "policy": {
+              "timeout": "7.00:00:00",
+              "retry": 0,
+              "retryIntervalInSeconds": 30,
+              "secureOutput": false,
+              "secureInput": false
+            },
+            "userProperties": [],
+            "typeProperties": {
+              "source": {
+                "type": "SqlSource",
+                "sqlReaderQuery": "SELECT COUNT(*) AS Count FROM StagingTable WHERE ProcessedDate = CAST(GETDATE() AS DATE)"
+              },
+              "dataset": {
+                "referenceName": "AzureSqlDatabase1",
+                "type": "DatasetReference"
+              },
+              "firstRowOnly": true
+            }
+          }
+        ],
+        "parameters": {
+          "alertWebhook": {
+            "type": "string",
+            "defaultValue": "https://hooks.slack.com/services/YOUR/WEBHOOK/URL"
+          }
+        },
+        "annotations": []
+      }
+    },
+    {
+      "type": "Microsoft.DataFactory/factories/pipelines",
+      "apiVersion": "2018-06-01",
+      "name": "[concat(parameters('factoryName'), '/Pipeline_ForEach')]",
+      "properties": {
+        "activities": [
+          {
+            "name": "GetFileList",
+            "type": "Lookup",
+            "dependsOn": [],
+            "policy": {
+              "timeout": "7.00:00:00",
+              "retry": 0,
+              "retryIntervalInSeconds": 30,
+              "secureOutput": false,
+              "secureInput": false
+            },
+            "userProperties": [],
+            "typeProperties": {
+              "source": {
+                "type": "SqlSource",
+                "sqlReaderQuery": "SELECT FileName FROM FileList WHERE Status = 'Pending'"
+              },
+              "dataset": {
+                "referenceName": "AzureSqlDatabase1",
+                "type": "DatasetReference"
+              },
+              "firstRowOnly": false
+            }
+          },
+          {
+            "name": "ForEachFile",
+            "type": "ForEach",
+            "dependsOn": [
+              {
+                "activity": "GetFileList",
+                "dependencyConditions": [
+                  "Succeeded"
+                ]
+              }
+            ],
+            "userProperties": [],
+            "typeProperties": {
+              "items": {
+                "value": "@activity('GetFileList').output.value",
+                "type": "Expression"
+              },
+              "isSequential": false,
+              "batchCount": 5,
+              "activities": [
+                {
+                  "name": "ProcessFile",
+                  "type": "Copy",
+                  "dependsOn": [],
+                  "policy": {
+                    "timeout": "7.00:00:00",
+                    "retry": 0,
+                    "retryIntervalInSeconds": 30,
+                    "secureOutput": false,
+                    "secureInput": false
+                  },
+                  "userProperties": [],
+                  "typeProperties": {
+                    "source": {
+                      "type": "BlobSource"
+                    },
+                    "sink": {
+                      "type": "SqlSink"
+                    }
+                  },
+                  "inputs": [
+                    {
+                      "referenceName": "AzureBlobStorage1",
+                      "type": "DatasetReference",
+                      "parameters": {
+                        "fileName": {
+                          "value": "@item().FileName",
+                          "type": "Expression"
+                        }
+                      }
+                    }
+                  ],
+                  "outputs": [
+                    {
+                      "referenceName": "AzureSqlDatabase1",
+                      "type": "DatasetReference"
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        ],
+        "annotations": []
+      }
+    },
+    {
+      "type": "Microsoft.DataFactory/factories/pipelines",
+      "apiVersion": "2018-06-01",
+      "name": "[concat(parameters('factoryName'), '/Pipeline_Switch')]",
+      "properties": {
+        "activities": [
+          {
+            "name": "GetFileType",
+            "type": "Lookup",
+            "dependsOn": [],
+            "policy": {
+              "timeout": "7.00:00:00",
+              "retry": 0,
+              "retryIntervalInSeconds": 30,
+              "secureOutput": false,
+              "secureInput": false
+            },
+            "userProperties": [],
+            "typeProperties": {
+              "source": {
+                "type": "SqlSource",
+                "sqlReaderQuery": "SELECT FileType FROM ProcessingQueue WHERE QueueId = @{pipeline().parameters.queueId}"
+              },
+              "dataset": {
+                "referenceName": "AzureSqlDatabase1",
+                "type": "DatasetReference"
+              },
+              "firstRowOnly": true
+            }
+          },
+          {
+            "name": "SwitchFileType",
+            "type": "Switch",
+            "dependsOn": [
+              {
+                "activity": "GetFileType",
+                "dependencyConditions": [
+                  "Succeeded"
+                ]
+              }
+            ],
+            "userProperties": [],
+            "typeProperties": {
+              "on": {
+                "value": "@activity('GetFileType').output.firstRow.FileType",
+                "type": "Expression"
+              },
+              "cases": {
+                "CSV": {
+                  "activities": [
+                    {
+                      "name": "ProcessCsv",
+                      "type": "Copy",
+                      "dependsOn": [],
+                      "policy": {
+                        "timeout": "7.00:00:00",
+                        "retry": 0,
+                        "retryIntervalInSeconds": 30,
+                        "secureOutput": false,
+                        "secureInput": false
+                      },
+                      "userProperties": [],
+                      "typeProperties": {
+                        "source": {
+                          "type": "DelimitedTextSource"
+                        },
+                        "sink": {
+                          "type": "SqlSink"
+                        }
+                      },
+                      "inputs": [
+                        {
+                          "referenceName": "AzureBlobStorage1",
+                          "type": "DatasetReference"
+                        }
+                      ],
+                      "outputs": [
+                        {
+                          "referenceName": "AzureSqlDatabase1",
+                          "type": "DatasetReference"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                "JSON": {
+                  "activities": [
+                    {
+                      "name": "ProcessJson",
+                      "type": "Copy",
+                      "dependsOn": [],
+                      "policy": {
+                        "timeout": "7.00:00:00",
+                        "retry": 0,
+                        "retryIntervalInSeconds": 30,
+                        "secureOutput": false,
+                        "secureInput": false
+                      },
+                      "userProperties": [],
+                      "typeProperties": {
+                        "source": {
+                          "type": "JsonSource"
+                        },
+                        "sink": {
+                          "type": "SqlSink"
+                        }
+                      },
+                      "inputs": [
+                        {
+                          "referenceName": "AzureBlobStorage1",
+                          "type": "DatasetReference"
+                        }
+                      ],
+                      "outputs": [
+                        {
+                          "referenceName": "AzureSqlDatabase1",
+                          "type": "DatasetReference"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                "XML": {
+                  "activities": [
+                    {
+                      "name": "ProcessXml",
+                      "type": "Copy",
+                      "dependsOn": [],
+                      "policy": {
+                        "timeout": "7.00:00:00",
+                        "retry": 0,
+                        "retryIntervalInSeconds": 30,
+                        "secureOutput": false,
+                        "secureInput": false
+                      },
+                      "userProperties": [],
+                      "typeProperties": {
+                        "source": {
+                          "type": "XmlSource"
+                        },
+                        "sink": {
+                          "type": "SqlSink"
+                        }
+                      },
+                      "inputs": [
+                        {
+                          "referenceName": "AzureBlobStorage1",
+                          "type": "DatasetReference"
+                        }
+                      ],
+                      "outputs": [
+                        {
+                          "referenceName": "AzureSqlDatabase1",
+                          "type": "DatasetReference"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              },
+              "default": {
+                "activities": [
+                  {
+                    "name": "ProcessUnknown",
+                    "type": "WebActivity",
+                    "dependsOn": [],
+                    "policy": {
+                      "timeout": "7.00:00:00",
+                      "retry": 0,
+                      "retryIntervalInSeconds": 30,
+                      "secureOutput": false,
+                      "secureInput": false
+                    },
+                    "userProperties": [],
+                    "typeProperties": {
+                      "url": "@pipeline().parameters.alertWebhook",
+                      "method": "POST",
+                      "body": {
+                        "value": "@concat('{\"message\":\"Unknown file type detected: ', activity('GetFileType').output.firstRow.FileType, '\"}')",
+                        "type": "Expression"
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        ],
+        "parameters": {
+          "queueId": {
+            "type": "string",
+            "defaultValue": "1"
+          },
+          "alertWebhook": {
+            "type": "string",
+            "defaultValue": "https://hooks.slack.com/services/YOUR/WEBHOOK/URL"
+          }
+        },
+        "annotations": []
+      }
+    },
+    {
+      "type": "Microsoft.DataFactory/factories/pipelines",
+      "apiVersion": "2018-06-01",
+      "name": "[concat(parameters('factoryName'), '/Pipeline_UntilLoop')]",
+      "properties": {
+        "activities": [
+          {
+            "name": "WaitAndRetry",
+            "type": "Until",
+            "dependsOn": [],
+            "userProperties": [],
+            "typeProperties": {
+              "expression": {
+                "value": "@equals(activity('CheckStatus').output.firstRow.Status, 'Completed')",
+                "type": "Expression"
+              },
+              "timeout": "00:30:00",
+              "activities": [
+                {
+                  "name": "CheckStatus",
+                  "type": "Lookup",
+                  "dependsOn": [],
+                  "policy": {
+                    "timeout": "7.00:00:00",
+                    "retry": 0,
+                    "retryIntervalInSeconds": 30,
+                    "secureOutput": false,
+                    "secureInput": false
+                  },
+                  "userProperties": [],
+                  "typeProperties": {
+                    "source": {
+                      "type": "SqlSource",
+                      "sqlReaderQuery": "SELECT Status FROM ProcessingStatus WHERE JobId = @{pipeline().parameters.jobId}"
+                    },
+                    "dataset": {
+                      "referenceName": "AzureSqlDatabase1",
+                      "type": "DatasetReference"
+                    },
+                    "firstRowOnly": true
+                  }
+                },
+                {
+                  "name": "WaitBeforeRetry",
+                  "type": "Wait",
+                  "dependsOn": [
+                    {
+                      "activity": "CheckStatus",
+                      "dependencyConditions": [
+                        "Succeeded"
+                      ]
+                    }
+                  ],
+                  "userProperties": [],
+                  "typeProperties": {
+                    "waitTimeInSeconds": 30
+                  }
+                }
+              ]
+            }
+          }
+        ],
+        "parameters": {
+          "jobId": {
+            "type": "string",
+            "defaultValue": "1"
+          }
+        },
+        "annotations": []
+      }
+    },
+    {
+      "type": "Microsoft.DataFactory/factories/pipelines",
+      "apiVersion": "2018-06-01",
+      "name": "[concat(parameters('factoryName'), '/Pipeline_ExecutePipeline')]",
+      "properties": {
+        "activities": [
+          {
+            "name": "ExecuteChildPipeline",
+            "type": "ExecutePipeline",
+            "dependsOn": [],
+            "policy": {
+              "timeout": "7.00:00:00",
+              "retry": 0,
+              "retryIntervalInSeconds": 30,
+              "secureOutput": false,
+              "secureInput": false
+            },
+            "userProperties": [],
+            "typeProperties": {
+              "pipeline": {
+                "referenceName": "@pipeline().parameters.childPipelineName",
+                "type": "PipelineReference"
+              },
+              "waitOnCompletion": true,
+              "parameters": {
+                "sourceFolder": {
+                  "value": "@pipeline().parameters.sourceFolder",
+                  "type": "Expression"
+                },
+                "destinationTable": {
+                  "value": "@pipeline().parameters.destinationTable",
+                  "type": "Expression"
+                }
+              }
+            }
+          }
+        ],
+        "parameters": {
+          "childPipelineName": {
+            "type": "string",
+            "defaultValue": "CopyData_BlobToSql"
+          },
+          "sourceFolder": {
+            "type": "string",
+            "defaultValue": "raw-data"
+          },
+          "destinationTable": {
+            "type": "string",
+            "defaultValue": "StagingTable"
+          }
+        },
+        "annotations": []
+      }
+    },
+    {
+      "type": "Microsoft.DataFactory/factories/pipelines",
+      "apiVersion": "2018-06-01",
+      "name": "[concat(parameters('factoryName'), '/Pipeline_Wait')]",
+      "properties": {
+        "activities": [
+          {
+            "name": "WaitBeforeProcessing",
+            "type": "Wait",
+            "dependsOn": [],
+            "userProperties": [],
+            "typeProperties": {
+              "waitTimeInSeconds": {
+                "value": "@pipeline().parameters.waitSeconds",
+                "type": "Expression"
+              }
+            }
+          },
+          {
+            "name": "ProcessData",
+            "type": "Copy",
+            "dependsOn": [
+              {
+                "activity": "WaitBeforeProcessing",
+                "dependencyConditions": [
+                  "Succeeded"
+                ]
+              }
+            ],
+            "policy": {
+              "timeout": "7.00:00:00",
+              "retry": 0,
+              "retryIntervalInSeconds": 30,
+              "secureOutput": false,
+              "secureInput": false
+            },
+            "userProperties": [],
+            "typeProperties": {
+              "source": {
+                "type": "BlobSource"
+              },
+              "sink": {
+                "type": "SqlSink"
+              }
+            },
+            "inputs": [
+              {
+                "referenceName": "AzureBlobStorage1",
+                "type": "DatasetReference"
+              }
+            ],
+            "outputs": [
+              {
+                "referenceName": "AzureSqlDatabase1",
+                "type": "DatasetReference"
+              }
+            ]
+          }
+        ],
+        "parameters": {
+          "waitSeconds": {
+            "type": "int",
+            "defaultValue": 300
+          }
+        },
+        "annotations": []
+      }
+    },
+    {
+      "type": "Microsoft.DataFactory/factories/pipelines",
+      "apiVersion": "2018-06-01",
+      "name": "[concat(parameters('factoryName'), '/Pipeline_Filter')]",
+      "properties": {
+        "activities": [
+          {
+            "name": "FilterAndProcess",
+            "type": "Filter",
+            "dependsOn": [],
+            "userProperties": [],
+            "typeProperties": {
+              "items": {
+                "value": "@activity('GetData').output.value",
+                "type": "Expression"
+              },
+              "condition": {
+                "value": "@greater(int(item().Amount), 1000)",
+                "type": "Expression"
+              }
+            },
+            "activities": [
+              {
+                "name": "ProcessHighValue",
+                "type": "Copy",
+                "dependsOn": [],
+                "policy": {
+                  "timeout": "7.00:00:00",
+                  "retry": 0,
+                  "retryIntervalInSeconds": 30,
+                  "secureOutput": false,
+                  "secureInput": false
+                },
+                "userProperties": [],
+                "typeProperties": {
+                  "source": {
+                    "type": "SqlSource"
+                  },
+                  "sink": {
+                    "type": "SqlSink"
+                  }
+                },
+                "inputs": [
+                  {
+                    "referenceName": "AzureSqlDatabase1",
+                    "type": "DatasetReference"
+                  }
+                ],
+                "outputs": [
+                  {
+                    "referenceName": "AzureSqlDatabase1",
+                    "type": "DatasetReference"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "name": "GetData",
+            "type": "Lookup",
+            "dependsOn": [],
+            "policy": {
+              "timeout": "7.00:00:00",
+              "retry": 0,
+              "retryIntervalInSeconds": 30,
+              "secureOutput": false,
+              "secureInput": false
+            },
+            "userProperties": [],
+            "typeProperties": {
+              "source": {
+                "type": "SqlSource",
+                "sqlReaderQuery": "SELECT * FROM Transactions"
+              },
+              "dataset": {
+                "referenceName": "AzureSqlDatabase1",
+                "type": "DatasetReference"
+              },
+              "firstRowOnly": false
+            }
+          }
+        ],
+        "annotations": []
+      }
+    },
+    {
+      "type": "Microsoft.DataFactory/factories/pipelines",
+      "apiVersion": "2018-06-01",
+      "name": "[concat(parameters('factoryName'), '/Pipeline_SetVariable')]",
+      "properties": {
+        "variables": {
+          "processDate": {
+            "type": "String",
+            "defaultValue": "@formatDateTime(pipeline().TriggerTime, 'yyyy-MM-dd')"
+          },
+          "recordCount": {
+            "type": "Int",
+            "defaultValue": 0
+          }
+        },
+        "activities": [
+          {
+            "name": "SetProcessDate",
+            "type": "SetVariable",
+            "dependsOn": [],
+            "userProperties": [],
+            "typeProperties": {
+              "variableName": "processDate",
+              "value": {
+                "value": "@formatDateTime(utcnow(), 'yyyy-MM-dd HH:mm:ss')",
+                "type": "Expression"
+              }
+            }
+          },
+          {
+            "name": "GetRecordCount",
+            "type": "Lookup",
+            "dependsOn": [
+              {
+                "activity": "SetProcessDate",
+                "dependencyConditions": [
+                  "Succeeded"
+                ]
+              }
+            ],
+            "policy": {
+              "timeout": "7.00:00:00",
+              "retry": 0,
+              "retryIntervalInSeconds": 30,
+              "secureOutput": false,
+              "secureInput": false
+            },
+            "userProperties": [],
+            "typeProperties": {
+              "source": {
+                "type": "SqlSource",
+                "sqlReaderQuery": "SELECT COUNT(*) AS RecordCount FROM StagingTable"
+              },
+              "dataset": {
+                "referenceName": "AzureSqlDatabase1",
+                "type": "DatasetReference"
+              },
+              "firstRowOnly": true
+            }
+          },
+          {
+            "name": "SetRecordCount",
+            "type": "SetVariable",
+            "dependsOn": [
+              {
+                "activity": "GetRecordCount",
+                "dependencyConditions": [
+                  "Succeeded"
+                ]
+              }
+            ],
+            "userProperties": [],
+            "typeProperties": {
+              "variableName": "recordCount",
+              "value": {
+                "value": "@int(activity('GetRecordCount').output.firstRow.RecordCount)",
+                "type": "Expression"
+              }
+            }
+          },
+          {
+            "name": "UseVariables",
+            "type": "Copy",
+            "dependsOn": [
+              {
+                "activity": "SetRecordCount",
+                "dependencyConditions": [
+                  "Succeeded"
+                ]
+              }
+            ],
+            "policy": {
+              "timeout": "7.00:00:00",
+              "retry": 0,
+              "retryIntervalInSeconds": 30,
+              "secureOutput": false,
+              "secureInput": false
+            },
+            "userProperties": [],
+            "typeProperties": {
+              "source": {
+                "type": "SqlSource",
+                "sqlReaderQuery": {
+                  "value": "@concat('SELECT * FROM StagingTable WHERE ProcessDate = ''', variables('processDate'), ''' AND RecordCount = ', string(variables('recordCount')))",
+                  "type": "Expression"
+                }
+              },
+              "sink": {
+                "type": "SqlSink"
+              }
+            },
+            "inputs": [
+              {
+                "referenceName": "AzureSqlDatabase1",
+                "type": "DatasetReference"
+              }
+            ],
+            "outputs": [
+              {
+                "referenceName": "AzureSqlDatabase1",
+                "type": "DatasetReference"
+              }
+            ]
+          }
+        ],
+        "annotations": []
+      }
+    },
+    {
+      "type": "Microsoft.DataFactory/factories/pipelines",
+      "apiVersion": "2018-06-01",
+      "name": "[concat(parameters('factoryName'), '/Pipeline_AppendVariable')]",
+      "properties": {
+        "variables": {
+          "fileList": {
+            "type": "Array",
+            "defaultValue": []
+          }
+        },
+        "activities": [
+          {
+            "name": "GetFileNames",
+            "type": "Lookup",
+            "dependsOn": [],
+            "policy": {
+              "timeout": "7.00:00:00",
+              "retry": 0,
+              "retryIntervalInSeconds": 30,
+              "secureOutput": false,
+              "secureInput": false
+            },
+            "userProperties": [],
+            "typeProperties": {
+              "source": {
+                "type": "SqlSource",
+                "sqlReaderQuery": "SELECT FileName FROM FileList"
+              },
+              "dataset": {
+                "referenceName": "AzureSqlDatabase1",
+                "type": "DatasetReference"
+              },
+              "firstRowOnly": false
+            }
+          },
+          {
+            "name": "AppendFileNames",
+            "type": "AppendVariable",
+            "dependsOn": [
+              {
+                "activity": "GetFileNames",
+                "dependencyConditions": [
+                  "Succeeded"
+                ]
+              }
+            ],
+            "userProperties": [],
+            "typeProperties": {
+              "variableName": "fileList",
+              "value": {
+                "value": "@activity('GetFileNames').output.value",
+                "type": "Expression"
+              }
+            }
+          },
+          {
+            "name": "ProcessFiles",
+            "type": "ForEach",
+            "dependsOn": [
+              {
+                "activity": "AppendFileNames",
+                "dependencyConditions": [
+                  "Succeeded"
+                ]
+              }
+            ],
+            "userProperties": [],
+            "typeProperties": {
+              "items": {
+                "value": "@variables('fileList')",
+                "type": "Expression"
+              },
+              "isSequential": true,
+              "activities": [
+                {
+                  "name": "ProcessFile",
+                  "type": "Copy",
+                  "dependsOn": [],
+                  "policy": {
+                    "timeout": "7.00:00:00",
+                    "retry": 0,
+                    "retryIntervalInSeconds": 30,
+                    "secureOutput": false,
+                    "secureInput": false
+                  },
+                  "userProperties": [],
+                  "typeProperties": {
+                    "source": {
+                      "type": "BlobSource"
+                    },
+                    "sink": {
+                      "type": "SqlSink"
+                    }
+                  },
+                  "inputs": [
+                    {
+                      "referenceName": "AzureBlobStorage1",
+                      "type": "DatasetReference",
+                      "parameters": {
+                        "fileName": {
+                          "value": "@item().FileName",
+                          "type": "Expression"
+                        }
+                      }
+                    }
+                  ],
+                  "outputs": [
+                    {
+                      "referenceName": "AzureSqlDatabase1",
+                      "type": "DatasetReference"
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        ],
+        "annotations": []
+      }
+    },
+    {
+      "type": "Microsoft.DataFactory/factories/pipelines",
+      "apiVersion": "2018-06-01",
+      "name": "[concat(parameters('factoryName'), '/Pipeline_Fail')]",
+      "properties": {
+        "activities": [
+          {
+            "name": "ValidateData",
+            "type": "Validation",
+            "dependsOn": [],
+            "policy": {
+              "timeout": "7.00:00:00",
+              "retry": 0,
+              "retryIntervalInSeconds": 30,
+              "secureOutput": false,
+              "secureInput": false
+            },
+            "userProperties": [],
+            "typeProperties": {
+              "dataset": {
+                "referenceName": "AzureBlobStorage1",
+                "type": "DatasetReference",
+                "parameters": {
+                  "fileName": "@pipeline().parameters.fileName"
+                }
+              },
+              "timeout": "00:05:00",
+              "sleep": 10,
+              "minimumSize": 1000
+            }
+          },
+          {
+            "name": "FailPipeline",
+            "type": "Fail",
+            "dependsOn": [
+              {
+                "activity": "ValidateData",
+                "dependencyConditions": [
+                  "Failed"
+                ]
+              }
+            ],
+            "userProperties": [],
+            "typeProperties": {
+              "message": {
+                "value": "@concat('Data validation failed for file: ', pipeline().parameters.fileName)",
+                "type": "Expression"
+              },
+              "errorCode": "VALIDATION_ERROR"
+            }
+          },
+          {
+            "name": "ProcessData",
+            "type": "Copy",
+            "dependsOn": [
+              {
+                "activity": "ValidateData",
+                "dependencyConditions": [
+                  "Succeeded"
+                ]
+              }
+            ],
+            "policy": {
+              "timeout": "7.00:00:00",
+              "retry": 0,
+              "retryIntervalInSeconds": 30,
+              "secureOutput": false,
+              "secureInput": false
+            },
+            "userProperties": [],
+            "typeProperties": {
+              "source": {
+                "type": "BlobSource"
+              },
+              "sink": {
+                "type": "SqlSink"
+              }
+            },
+            "inputs": [
+              {
+                "referenceName": "AzureBlobStorage1",
+                "type": "DatasetReference"
+              }
+            ],
+            "outputs": [
+              {
+                "referenceName": "AzureSqlDatabase1",
+                "type": "DatasetReference"
+              }
+            ]
+          }
+        ],
+        "parameters": {
+          "fileName": {
+            "type": "string",
+            "defaultValue": "data.csv"
+          }
+        },
+        "annotations": []
+      }
+    }
+  ]
+}
+
+

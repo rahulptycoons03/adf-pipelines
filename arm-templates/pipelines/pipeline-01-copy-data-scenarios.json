@@ -1,0 +1,906 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "factoryName": {
+      "type": "string",
+      "metadata": {
+        "description": "Name of the Data Factory"
+      }
+    }
+  },
+  "resources": [
+    {
+      "type": "Microsoft.DataFactory/factories/pipelines",
+      "apiVersion": "2018-06-01",
+      "name": "[concat(parameters('factoryName'), '/CopyData_BlobToSql')]",
+      "properties": {
+        "activities": [
+          {
+            "name": "CopyBlobToSql",
+            "type": "Copy",
+            "dependsOn": [],
+            "policy": {
+              "timeout": "7.00:00:00",
+              "retry": 0,
+              "retryIntervalInSeconds": 30,
+              "secureOutput": false,
+              "secureInput": false
+            },
+            "userProperties": [],
+            "typeProperties": {
+              "source": {
+                "type": "BlobSource",
+                "recursive": true,
+                "skipHeaderLineCount": 0
+              },
+              "sink": {
+                "type": "SqlSink",
+                "writeBehavior": "Insert",
+                "sqlWriterUseTableLock": false,
+                "tableOption": "autoCreate"
+              },
+              "enableStaging": false,
+              "translator": {
+                "type": "TabularTranslator",
+                "typeConversion": true,
+                "typeConversionSettings": {
+                  "allowDataTruncation": true,
+                  "treatBooleanAsNumber": false
+                }
+              }
+            },
+            "inputs": [
+              {
+                "referenceName": "AzureBlobStorage1",
+                "type": "DatasetReference",
+                "parameters": {
+                  "folderPath": {
+                    "value": "@pipeline().parameters.sourceFolder",
+                    "type": "Expression"
+                  },
+                  "fileName": {
+                    "value": "@pipeline().parameters.sourceFile",
+                    "type": "Expression"
+                  }
+                }
+              }
+            ],
+            "outputs": [
+              {
+                "referenceName": "AzureSqlDatabase1",
+                "type": "DatasetReference",
+                "parameters": {
+                  "tableName": {
+                    "value": "@pipeline().parameters.destinationTable",
+                    "type": "Expression"
+                  }
+                }
+              }
+            ]
+          }
+        ],
+        "parameters": {
+          "sourceFolder": {
+            "type": "string",
+            "defaultValue": "raw-data"
+          },
+          "sourceFile": {
+            "type": "string",
+            "defaultValue": "data.csv"
+          },
+          "destinationTable": {
+            "type": "string",
+            "defaultValue": "StagingTable"
+          }
+        },
+        "annotations": [],
+        "lastPublishTime": "2024-01-01T00:00:00Z"
+      }
+    },
+    {
+      "type": "Microsoft.DataFactory/factories/pipelines",
+      "apiVersion": "2018-06-01",
+      "name": "[concat(parameters('factoryName'), '/CopyData_DataLakeToDataWarehouse')]",
+      "properties": {
+        "activities": [
+          {
+            "name": "CopyDataLakeToDW",
+            "type": "Copy",
+            "dependsOn": [],
+            "policy": {
+              "timeout": "7.00:00:00",
+              "retry": 0,
+              "retryIntervalInSeconds": 30,
+              "secureOutput": false,
+              "secureInput": false
+            },
+            "userProperties": [],
+            "typeProperties": {
+              "source": {
+                "type": "DelimitedTextSource",
+                "storeSettings": {
+                  "type": "AzureBlobFSReadSettings",
+                  "recursive": true,
+                  "wildcardFileName": "*.csv",
+                  "enablePartitionDiscovery": true
+                },
+                "formatSettings": {
+                  "type": "DelimitedTextReadSettings",
+                  "skipLineCount": 1
+                }
+              },
+              "sink": {
+                "type": "SqlDWSink",
+                "allowPolyBase": true,
+                "polyBaseSettings": {
+                  "rejectType": "value",
+                  "rejectValue": 0,
+                  "rejectSampleValue": 0,
+                  "useTypeDefault": true
+                },
+                "tableOption": "autoCreate"
+              },
+              "enableStaging": true,
+              "stagingSettings": {
+                "linkedServiceName": {
+                  "referenceName": "AzureBlobStorage1",
+                  "type": "LinkedServiceReference"
+                },
+                "path": "staging"
+              }
+            },
+            "inputs": [
+              {
+                "referenceName": "AzureDataLakeStorageGen2",
+                "type": "DatasetReference",
+                "parameters": {
+                  "folderPath": "bronze",
+                  "fileName": "customer_data.csv"
+                }
+              }
+            ],
+            "outputs": [
+              {
+                "referenceName": "AzureSqlDW1",
+                "type": "DatasetReference",
+                "parameters": {
+                  "tableName": "dbo.DimCustomer"
+                }
+              }
+            ]
+          }
+        ],
+        "annotations": []
+      }
+    },
+    {
+      "type": "Microsoft.DataFactory/factories/pipelines",
+      "apiVersion": "2018-06-01",
+      "name": "[concat(parameters('factoryName'), '/CopyData_SqlToCosmosDB')]",
+      "properties": {
+        "activities": [
+          {
+            "name": "CopySqlToCosmos",
+            "type": "Copy",
+            "dependsOn": [],
+            "policy": {
+              "timeout": "7.00:00:00",
+              "retry": 0,
+              "retryIntervalInSeconds": 30,
+              "secureOutput": false,
+              "secureInput": false
+            },
+            "userProperties": [],
+            "typeProperties": {
+              "source": {
+                "type": "SqlSource",
+                "sqlReaderQuery": {
+                  "value": "@pipeline().parameters.sqlQuery",
+                  "type": "Expression"
+                },
+                "partitionOption": "None"
+              },
+              "sink": {
+                "type": "CosmosDbSqlApiSink",
+                "writeBehavior": "upsert",
+                "disableMetricsCollection": false
+              },
+              "translator": {
+                "type": "TabularTranslator",
+                "mappings": [
+                  {
+                    "source": {
+                      "path": "customerId"
+                    },
+                    "sink": {
+                      "name": "id"
+                    }
+                  }
+                ]
+              }
+            },
+            "inputs": [
+              {
+                "referenceName": "AzureSqlDatabase1",
+                "type": "DatasetReference",
+                "parameters": {
+                  "tableName": "@pipeline().parameters.sourceTable"
+                }
+              }
+            ],
+            "outputs": [
+              {
+                "referenceName": "CosmosDb1",
+                "type": "DatasetReference",
+                "parameters": {
+                  "collectionName": "@pipeline().parameters.collectionName"
+                }
+              }
+            ]
+          }
+        ],
+        "parameters": {
+          "sqlQuery": {
+            "type": "string",
+            "defaultValue": "SELECT * FROM Customers WHERE LastModifiedDate > GETDATE()-1"
+          },
+          "sourceTable": {
+            "type": "string",
+            "defaultValue": "Customers"
+          },
+          "collectionName": {
+            "type": "string",
+            "defaultValue": "CustomerCollection"
+          }
+        },
+        "annotations": []
+      }
+    },
+    {
+      "type": "Microsoft.DataFactory/factories/pipelines",
+      "apiVersion": "2018-06-01",
+      "name": "[concat(parameters('factoryName'), '/CopyData_RestApiToBlob')]",
+      "properties": {
+        "activities": [
+          {
+            "name": "CopyRestToBlob",
+            "type": "Copy",
+            "dependsOn": [],
+            "policy": {
+              "timeout": "7.00:00:00",
+              "retry": 0,
+              "retryIntervalInSeconds": 30,
+              "secureOutput": false,
+              "secureInput": false
+            },
+            "userProperties": [],
+            "typeProperties": {
+              "source": {
+                "type": "RestSource",
+                "httpRequestTimeout": "00:01:40",
+                "requestInterval": "00.00:00:00.010",
+                "requestMethod": "GET",
+                "additionalHeaders": {
+                  "Accept": "application/json"
+                },
+                "paginationRules": {},
+                "httpMethod": "GET"
+              },
+              "sink": {
+                "type": "JsonSink",
+                "storeSettings": {
+                  "type": "AzureBlobStorageWriteSettings",
+                  "copyBehavior": "PreserveHierarchy"
+                },
+                "formatSettings": {
+                  "type": "JsonWriteSettings"
+                }
+              },
+              "translator": {
+                "type": "TabularTranslator",
+                "mappings": []
+              }
+            },
+            "inputs": [
+              {
+                "referenceName": "RestService1",
+                "type": "DatasetReference",
+                "parameters": {
+                  "relativeUrl": "@pipeline().parameters.apiEndpoint"
+                }
+              }
+            ],
+            "outputs": [
+              {
+                "referenceName": "AzureBlobStorage1",
+                "type": "DatasetReference",
+                "parameters": {
+                  "folderPath": "@pipeline().parameters.outputFolder",
+                  "fileName": "@concat('api_data_', pipeline().RunId, '.json')"
+                }
+              }
+            ]
+          }
+        ],
+        "parameters": {
+          "apiEndpoint": {
+            "type": "string",
+            "defaultValue": "/api/v1/data"
+          },
+          "outputFolder": {
+            "type": "string",
+            "defaultValue": "api-extracts"
+          }
+        },
+        "annotations": []
+      }
+    },
+    {
+      "type": "Microsoft.DataFactory/factories/pipelines",
+      "apiVersion": "2018-06-01",
+      "name": "[concat(parameters('factoryName'), '/CopyData_SftpToBlob')]",
+      "properties": {
+        "activities": [
+          {
+            "name": "CopySftpToBlob",
+            "type": "Copy",
+            "dependsOn": [],
+            "policy": {
+              "timeout": "7.00:00:00",
+              "retry": 0,
+              "retryIntervalInSeconds": 30,
+              "secureOutput": false,
+              "secureInput": false
+            },
+            "userProperties": [],
+            "typeProperties": {
+              "source": {
+                "type": "DelimitedTextSource",
+                "storeSettings": {
+                  "type": "SftpReadSettings",
+                  "recursive": true,
+                  "wildcardFileName": "*.csv",
+                  "modifiedDatetimeStart": {
+                    "value": "@addhours(pipeline().TriggerTime, -24)",
+                    "type": "Expression"
+                  },
+                  "modifiedDatetimeEnd": {
+                    "value": "@pipeline().TriggerTime",
+                    "type": "Expression"
+                  }
+                },
+                "formatSettings": {
+                  "type": "DelimitedTextReadSettings",
+                  "skipLineCount": 1
+                }
+              },
+              "sink": {
+                "type": "DelimitedTextSink",
+                "storeSettings": {
+                  "type": "AzureBlobStorageWriteSettings",
+                  "copyBehavior": "PreserveHierarchy"
+                },
+                "formatSettings": {
+                  "type": "DelimitedTextWriteSettings",
+                  "quoteAllText": true,
+                  "fileExtension": ".csv"
+                }
+              },
+              "enableStaging": false,
+              "translator": {
+                "type": "TabularTranslator",
+                "typeConversion": true
+              }
+            },
+            "inputs": [
+              {
+                "referenceName": "SftpServer1",
+                "type": "DatasetReference",
+                "parameters": {
+                  "folderPath": "@pipeline().parameters.sftpFolder",
+                  "fileName": ""
+                }
+              }
+            ],
+            "outputs": [
+              {
+                "referenceName": "AzureBlobStorage1",
+                "type": "DatasetReference",
+                "parameters": {
+                  "folderPath": "@concat('sftp-ingest/', formatDateTime(pipeline().TriggerTime, 'yyyy/MM/dd'))",
+                  "fileName": ""
+                }
+              }
+            ]
+          }
+        ],
+        "parameters": {
+          "sftpFolder": {
+            "type": "string",
+            "defaultValue": "/incoming"
+          }
+        },
+        "annotations": []
+      }
+    },
+    {
+      "type": "Microsoft.DataFactory/factories/pipelines",
+      "apiVersion": "2018-06-01",
+      "name": "[concat(parameters('factoryName'), '/CopyData_WithDataQuality')]",
+      "properties": {
+        "activities": [
+          {
+            "name": "ValidateData",
+            "type": "Validation",
+            "dependsOn": [],
+            "policy": {
+              "timeout": "7.00:00:00",
+              "retry": 0,
+              "retryIntervalInSeconds": 30,
+              "secureOutput": false,
+              "secureInput": false
+            },
+            "userProperties": [],
+            "typeProperties": {
+              "dataset": {
+                "referenceName": "AzureBlobStorage1",
+                "type": "DatasetReference",
+                "parameters": {
+                  "folderPath": "source",
+                  "fileName": "data.csv"
+                }
+              },
+              "timeout": "00:05:00",
+              "sleep": 10,
+              "minimumSize": 1000,
+              "childItems": true
+            }
+          },
+          {
+            "name": "CopyData",
+            "type": "Copy",
+            "dependsOn": [
+              {
+                "activity": "ValidateData",
+                "dependencyConditions": [
+                  "Succeeded"
+                ]
+              }
+            ],
+            "policy": {
+              "timeout": "7.00:00:00",
+              "retry": 0,
+              "retryIntervalInSeconds": 30,
+              "secureOutput": false,
+              "secureInput": false
+            },
+            "userProperties": [],
+            "typeProperties": {
+              "source": {
+                "type": "DelimitedTextSource",
+                "storeSettings": {
+                  "type": "AzureBlobStorageReadSettings",
+                  "recursive": true
+                },
+                "formatSettings": {
+                  "type": "DelimitedTextReadSettings"
+                }
+              },
+              "sink": {
+                "type": "SqlSink",
+                "writeBehavior": "Upsert",
+                "upsertSettings": {
+                  "useTempDB": false,
+                  "keys": [
+                    "CustomerId"
+                  ],
+                  "interimSchemaName": "dbo"
+                }
+              },
+              "enableStaging": true,
+              "stagingSettings": {
+                "linkedServiceName": {
+                  "referenceName": "AzureBlobStorage1",
+                  "type": "LinkedServiceReference"
+                },
+                "path": "staging"
+              },
+              "dataIntegrationUnits": 4,
+              "translator": {
+                "type": "TabularTranslator",
+                "typeConversion": true,
+                "typeConversionSettings": {
+                  "allowDataTruncation": true,
+                  "treatBooleanAsNumber": false
+                }
+              }
+            },
+            "inputs": [
+              {
+                "referenceName": "AzureBlobStorage1",
+                "type": "DatasetReference",
+                "parameters": {
+                  "folderPath": "source",
+                  "fileName": "data.csv"
+                }
+              }
+            ],
+            "outputs": [
+              {
+                "referenceName": "AzureSqlDatabase1",
+                "type": "DatasetReference",
+                "parameters": {
+                  "tableName": "dbo.Customers"
+                }
+              }
+            ]
+          }
+        ],
+        "annotations": []
+      }
+    },
+    {
+      "type": "Microsoft.DataFactory/factories/pipelines",
+      "apiVersion": "2018-06-01",
+      "name": "[concat(parameters('factoryName'), '/CopyData_ParquetToParquet')]",
+      "properties": {
+        "activities": [
+          {
+            "name": "CopyParquetFiles",
+            "type": "Copy",
+            "dependsOn": [],
+            "policy": {
+              "timeout": "7.00:00:00",
+              "retry": 0,
+              "retryIntervalInSeconds": 30,
+              "secureOutput": false,
+              "secureInput": false
+            },
+            "userProperties": [],
+            "typeProperties": {
+              "source": {
+                "type": "ParquetSource",
+                "storeSettings": {
+                  "type": "AzureBlobFSReadSettings",
+                  "recursive": true,
+                  "wildcardFolderPath": "*",
+                  "wildcardFileName": "*.parquet"
+                },
+                "formatSettings": {
+                  "type": "ParquetReadSettings"
+                }
+              },
+              "sink": {
+                "type": "ParquetSink",
+                "storeSettings": {
+                  "type": "AzureBlobFSWriteSettings"
+                },
+                "formatSettings": {
+                  "type": "ParquetWriteSettings"
+                }
+              },
+              "translator": {
+                "type": "TabularTranslator",
+                "mappings": []
+              }
+            },
+            "inputs": [
+              {
+                "referenceName": "AzureDataLakeStorageGen2",
+                "type": "DatasetReference",
+                "parameters": {
+                  "folderPath": "raw/parquet",
+                  "fileName": ""
+                }
+              }
+            ],
+            "outputs": [
+              {
+                "referenceName": "AzureDataLakeStorageGen2",
+                "type": "DatasetReference",
+                "parameters": {
+                  "folderPath": "processed/parquet",
+                  "fileName": ""
+                }
+              }
+            ]
+          }
+        ],
+        "annotations": []
+      }
+    },
+    {
+      "type": "Microsoft.DataFactory/factories/pipelines",
+      "apiVersion": "2018-06-01",
+      "name": "[concat(parameters('factoryName'), '/CopyData_ExcelToSql')]",
+      "properties": {
+        "activities": [
+          {
+            "name": "CopyExcelToSql",
+            "type": "Copy",
+            "dependsOn": [],
+            "policy": {
+              "timeout": "7.00:00:00",
+              "retry": 0,
+              "retryIntervalInSeconds": 30,
+              "secureOutput": false,
+              "secureInput": false
+            },
+            "userProperties": [],
+            "typeProperties": {
+              "source": {
+                "type": "ExcelSource",
+                "storeSettings": {
+                  "type": "AzureBlobStorageReadSettings",
+                  "recursive": false
+                },
+                "formatSettings": {
+                  "type": "ExcelReadSettings",
+                  "sheetName": "@pipeline().parameters.sheetName",
+                  "range": "@pipeline().parameters.range",
+                  "firstRowAsHeader": true
+                }
+              },
+              "sink": {
+                "type": "SqlSink",
+                "writeBehavior": "Insert",
+                "tableOption": "autoCreate"
+              },
+              "translator": {
+                "type": "TabularTranslator"
+              }
+            },
+            "inputs": [
+              {
+                "referenceName": "AzureBlobStorage1",
+                "type": "DatasetReference",
+                "parameters": {
+                  "folderPath": "excel",
+                  "fileName": "@pipeline().parameters.excelFileName"
+                }
+              }
+            ],
+            "outputs": [
+              {
+                "referenceName": "AzureSqlDatabase1",
+                "type": "DatasetReference",
+                "parameters": {
+                  "tableName": "@pipeline().parameters.destinationTable"
+                }
+              }
+            ]
+          }
+        ],
+        "parameters": {
+          "excelFileName": {
+            "type": "string",
+            "defaultValue": "data.xlsx"
+          },
+          "sheetName": {
+            "type": "string",
+            "defaultValue": "Sheet1"
+          },
+          "range": {
+            "type": "string",
+            "defaultValue": "A1:Z1000"
+          },
+          "destinationTable": {
+            "type": "string",
+            "defaultValue": "ExcelImport"
+          }
+        },
+        "annotations": []
+      }
+    },
+    {
+      "type": "Microsoft.DataFactory/factories/pipelines",
+      "apiVersion": "2018-06-01",
+      "name": "[concat(parameters('factoryName'), '/CopyData_AvroToJson')]",
+      "properties": {
+        "activities": [
+          {
+            "name": "CopyAvroToJson",
+            "type": "Copy",
+            "dependsOn": [],
+            "policy": {
+              "timeout": "7.00:00:00",
+              "retry": 0,
+              "retryIntervalInSeconds": 30,
+              "secureOutput": false,
+              "secureInput": false
+            },
+            "userProperties": [],
+            "typeProperties": {
+              "source": {
+                "type": "AvroSource",
+                "storeSettings": {
+                  "type": "AzureBlobFSReadSettings",
+                  "recursive": true
+                },
+                "formatSettings": {
+                  "type": "AvroReadSettings"
+                }
+              },
+              "sink": {
+                "type": "JsonSink",
+                "storeSettings": {
+                  "type": "AzureBlobFSWriteSettings"
+                },
+                "formatSettings": {
+                  "type": "JsonWriteSettings",
+                  "filePattern": "setOfObjects"
+                }
+              },
+              "translator": {
+                "type": "TabularTranslator"
+              }
+            },
+            "inputs": [
+              {
+                "referenceName": "AzureDataLakeStorageGen2",
+                "type": "DatasetReference",
+                "parameters": {
+                  "folderPath": "avro",
+                  "fileName": ""
+                }
+              }
+            ],
+            "outputs": [
+              {
+                "referenceName": "AzureDataLakeStorageGen2",
+                "type": "DatasetReference",
+                "parameters": {
+                  "folderPath": "json",
+                  "fileName": ""
+                }
+              }
+            ]
+          }
+        ],
+        "annotations": []
+      }
+    },
+    {
+      "type": "Microsoft.DataFactory/factories/pipelines",
+      "apiVersion": "2018-06-01",
+      "name": "[concat(parameters('factoryName'), '/CopyData_OrcToOrc')]",
+      "properties": {
+        "activities": [
+          {
+            "name": "CopyOrcFiles",
+            "type": "Copy",
+            "dependsOn": [],
+            "policy": {
+              "timeout": "7.00:00:00",
+              "retry": 0,
+              "retryIntervalInSeconds": 30,
+              "secureOutput": false,
+              "secureInput": false
+            },
+            "userProperties": [],
+            "typeProperties": {
+              "source": {
+                "type": "OrcSource",
+                "storeSettings": {
+                  "type": "AzureBlobFSReadSettings",
+                  "recursive": true
+                },
+                "formatSettings": {
+                  "type": "OrcReadSettings"
+                }
+              },
+              "sink": {
+                "type": "OrcSink",
+                "storeSettings": {
+                  "type": "AzureBlobFSWriteSettings"
+                },
+                "formatSettings": {
+                  "type": "OrcWriteSettings"
+                }
+              },
+              "translator": {
+                "type": "TabularTranslator"
+              }
+            },
+            "inputs": [
+              {
+                "referenceName": "AzureDataLakeStorageGen2",
+                "type": "DatasetReference",
+                "parameters": {
+                  "folderPath": "orc-source",
+                  "fileName": ""
+                }
+              }
+            ],
+            "outputs": [
+              {
+                "referenceName": "AzureDataLakeStorageGen2",
+                "type": "DatasetReference",
+                "parameters": {
+                  "folderPath": "orc-target",
+                  "fileName": ""
+                }
+              }
+            ]
+          }
+        ],
+        "annotations": []
+      }
+    },
+    {
+      "type": "Microsoft.DataFactory/factories/pipelines",
+      "apiVersion": "2018-06-01",
+      "name": "[concat(parameters('factoryName'), '/CopyData_BinaryCopy')]",
+      "properties": {
+        "activities": [
+          {
+            "name": "CopyBinaryFiles",
+            "type": "Copy",
+            "dependsOn": [],
+            "policy": {
+              "timeout": "7.00:00:00",
+              "retry": 0,
+              "retryIntervalInSeconds": 30,
+              "secureOutput": false,
+              "secureInput": false
+            },
+            "userProperties": [],
+            "typeProperties": {
+              "source": {
+                "type": "BinarySource",
+                "storeSettings": {
+                  "type": "AzureBlobStorageReadSettings",
+                  "recursive": true,
+                  "wildcardFileName": "*.*"
+                },
+                "formatSettings": {
+                  "type": "BinaryReadSettings",
+                  "compressionProperties": {
+                    "type": "ZipDeflateReadSettings"
+                  }
+                }
+              },
+              "sink": {
+                "type": "BinarySink",
+                "storeSettings": {
+                  "type": "AzureBlobStorageWriteSettings",
+                  "copyBehavior": "PreserveHierarchy"
+                },
+                "formatSettings": {
+                  "type": "BinaryWriteSettings",
+                  "compressionProperties": {
+                    "type": "ZipDeflateWriteSettings"
+                  }
+                }
+              }
+            },
+            "inputs": [
+              {
+                "referenceName": "AzureBlobStorage1",
+                "type": "DatasetReference",
+                "parameters": {
+                  "folderPath": "source-files",
+                  "fileName": ""
+                }
+              }
+            ],
+            "outputs": [
+              {
+                "referenceName": "AzureBlobStorage1",
+                "type": "DatasetReference",
+                "parameters": {
+                  "folderPath": "copied-files",
+                  "fileName": ""
+                }
+              }
+            ]
+          }
+        ],
+        "annotations": []
+      }
+    }
+  ]
+}
+
+

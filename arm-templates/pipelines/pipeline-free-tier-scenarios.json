@@ -1,0 +1,843 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "factoryName": {
+      "type": "string",
+      "metadata": {
+        "description": "Name of the Data Factory"
+      }
+    }
+  },
+  "resources": [
+    {
+      "type": "Microsoft.DataFactory/factories/pipelines",
+      "apiVersion": "2018-06-01",
+      "name": "[concat(parameters('factoryName'), '/FreeTier_CopyBlobToSql')]",
+      "properties": {
+        "activities": [
+          {
+            "name": "CopyBlobToSql",
+            "type": "Copy",
+            "dependsOn": [],
+            "policy": {
+              "timeout": "1.00:00:00",
+              "retry": 1,
+              "retryIntervalInSeconds": 30,
+              "secureOutput": false,
+              "secureInput": false
+            },
+            "userProperties": [],
+            "typeProperties": {
+              "source": {
+                "type": "DelimitedTextSource",
+                "storeSettings": {
+                  "type": "AzureBlobStorageReadSettings",
+                  "recursive": false
+                },
+                "formatSettings": {
+                  "type": "DelimitedTextReadSettings",
+                  "skipLineCount": 1
+                }
+              },
+              "sink": {
+                "type": "SqlSink",
+                "writeBehavior": "Insert",
+                "tableOption": "autoCreate"
+              },
+              "enableStaging": false,
+              "dataIntegrationUnits": 2,
+              "translator": {
+                "type": "TabularTranslator",
+                "typeConversion": true
+              }
+            },
+            "inputs": [
+              {
+                "referenceName": "AzureBlobStorage1",
+                "type": "DatasetReference",
+                "parameters": {
+                  "folderPath": "@pipeline().parameters.sourceFolder",
+                  "fileName": "@pipeline().parameters.sourceFile"
+                }
+              }
+            ],
+            "outputs": [
+              {
+                "referenceName": "AzureSqlDatabase1",
+                "type": "DatasetReference",
+                "parameters": {
+                  "tableName": "@pipeline().parameters.destinationTable"
+                }
+              }
+            ]
+          }
+        ],
+        "parameters": {
+          "sourceFolder": {
+            "type": "string",
+            "defaultValue": "raw-data"
+          },
+          "sourceFile": {
+            "type": "string",
+            "defaultValue": "data.csv"
+          },
+          "destinationTable": {
+            "type": "string",
+            "defaultValue": "StagingTable"
+          }
+        },
+        "annotations": []
+      }
+    },
+    {
+      "type": "Microsoft.DataFactory/factories/pipelines",
+      "apiVersion": "2018-06-01",
+      "name": "[concat(parameters('factoryName'), '/FreeTier_WebActivityRestApi')]",
+      "properties": {
+        "activities": [
+          {
+            "name": "CallRestAPI",
+            "type": "WebActivity",
+            "dependsOn": [],
+            "policy": {
+              "timeout": "1.00:00:00",
+              "retry": 1,
+              "retryIntervalInSeconds": 30,
+              "secureOutput": false,
+              "secureInput": false
+            },
+            "userProperties": [],
+            "typeProperties": {
+              "url": "@pipeline().parameters.apiUrl",
+              "method": "GET",
+              "headers": {
+                "Content-Type": "application/json"
+              }
+            }
+          }
+        ],
+        "parameters": {
+          "apiUrl": {
+            "type": "string",
+            "defaultValue": "https://api.github.com/users/octocat"
+          }
+        },
+        "annotations": []
+      }
+    },
+    {
+      "type": "Microsoft.DataFactory/factories/pipelines",
+      "apiVersion": "2018-06-01",
+      "name": "[concat(parameters('factoryName'), '/FreeTier_LookupActivity')]",
+      "properties": {
+        "activities": [
+          {
+            "name": "LookupData",
+            "type": "Lookup",
+            "dependsOn": [],
+            "policy": {
+              "timeout": "1.00:00:00",
+              "retry": 1,
+              "retryIntervalInSeconds": 30,
+              "secureOutput": false,
+              "secureInput": false
+            },
+            "userProperties": [],
+            "typeProperties": {
+              "source": {
+                "type": "SqlSource",
+                "sqlReaderQuery": "@pipeline().parameters.sqlQuery"
+              },
+              "dataset": {
+                "referenceName": "AzureSqlDatabase1",
+                "type": "DatasetReference"
+              },
+              "firstRowOnly": true
+            }
+          }
+        ],
+        "parameters": {
+          "sqlQuery": {
+            "type": "string",
+            "defaultValue": "SELECT COUNT(*) AS RecordCount FROM INFORMATION_SCHEMA.TABLES"
+          }
+        },
+        "annotations": []
+      }
+    },
+    {
+      "type": "Microsoft.DataFactory/factories/pipelines",
+      "apiVersion": "2018-06-01",
+      "name": "[concat(parameters('factoryName'), '/FreeTier_IfCondition')]",
+      "properties": {
+        "activities": [
+          {
+            "name": "CheckRecordCount",
+            "type": "Lookup",
+            "dependsOn": [],
+            "policy": {
+              "timeout": "1.00:00:00",
+              "retry": 1,
+              "retryIntervalInSeconds": 30,
+              "secureOutput": false,
+              "secureInput": false
+            },
+            "userProperties": [],
+            "typeProperties": {
+              "source": {
+                "type": "SqlSource",
+                "sqlReaderQuery": "SELECT COUNT(*) AS Count FROM INFORMATION_SCHEMA.TABLES"
+              },
+              "dataset": {
+                "referenceName": "AzureSqlDatabase1",
+                "type": "DatasetReference"
+              },
+              "firstRowOnly": true
+            }
+          },
+          {
+            "name": "IfCondition",
+            "type": "IfCondition",
+            "dependsOn": [
+              {
+                "activity": "CheckRecordCount",
+                "dependencyConditions": [
+                  "Succeeded"
+                ]
+              }
+            ],
+            "userProperties": [],
+            "typeProperties": {
+              "expression": {
+                "value": "@greater(int(activity('CheckRecordCount').output.firstRow.Count), 0)",
+                "type": "Expression"
+              },
+              "ifTrueActivities": [
+                {
+                  "name": "CopyData",
+                  "type": "Copy",
+                  "dependsOn": [],
+                  "policy": {
+                    "timeout": "1.00:00:00",
+                    "retry": 1,
+                    "retryIntervalInSeconds": 30,
+                    "secureOutput": false,
+                    "secureInput": false
+                  },
+                  "userProperties": [],
+                  "typeProperties": {
+                    "source": {
+                      "type": "SqlSource",
+                      "sqlReaderQuery": "SELECT TOP 10 * FROM INFORMATION_SCHEMA.TABLES"
+                    },
+                    "sink": {
+                      "type": "BlobSink"
+                    },
+                    "enableStaging": false
+                  },
+                  "inputs": [
+                    {
+                      "referenceName": "AzureSqlDatabase1",
+                      "type": "DatasetReference"
+                    }
+                  ],
+                  "outputs": [
+                    {
+                      "referenceName": "AzureBlobStorage1",
+                      "type": "DatasetReference",
+                      "parameters": {
+                        "folderPath": "output",
+                        "fileName": "@concat('result_', pipeline().RunId, '.csv')"
+                      }
+                    }
+                  ]
+                }
+              ],
+              "ifFalseActivities": [
+                {
+                  "name": "WaitActivity",
+                  "type": "Wait",
+                  "dependsOn": [],
+                  "userProperties": [],
+                  "typeProperties": {
+                    "waitTimeInSeconds": 5
+                  }
+                }
+              ]
+            }
+          }
+        ],
+        "annotations": []
+      }
+    },
+    {
+      "type": "Microsoft.DataFactory/factories/pipelines",
+      "apiVersion": "2018-06-01",
+      "name": "[concat(parameters('factoryName'), '/FreeTier_ForEachActivity')]",
+      "properties": {
+        "activities": [
+          {
+            "name": "GetTableList",
+            "type": "Lookup",
+            "dependsOn": [],
+            "policy": {
+              "timeout": "1.00:00:00",
+              "retry": 1,
+              "retryIntervalInSeconds": 30,
+              "secureOutput": false,
+              "secureInput": false
+            },
+            "userProperties": [],
+            "typeProperties": {
+              "source": {
+                "type": "SqlSource",
+                "sqlReaderQuery": "SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_TYPE = 'BASE TABLE'"
+              },
+              "dataset": {
+                "referenceName": "AzureSqlDatabase1",
+                "type": "DatasetReference"
+              },
+              "firstRowOnly": false
+            }
+          },
+          {
+            "name": "ForEachTable",
+            "type": "ForEach",
+            "dependsOn": [
+              {
+                "activity": "GetTableList",
+                "dependencyConditions": [
+                  "Succeeded"
+                ]
+              }
+            ],
+            "userProperties": [],
+            "typeProperties": {
+              "items": {
+                "value": "@activity('GetTableList').output.value",
+                "type": "Expression"
+              },
+              "isSequential": true,
+              "batchCount": 1,
+              "activities": [
+                {
+                  "name": "ExportTable",
+                  "type": "Copy",
+                  "dependsOn": [],
+                  "policy": {
+                    "timeout": "1.00:00:00",
+                    "retry": 1,
+                    "retryIntervalInSeconds": 30,
+                    "secureOutput": false,
+                    "secureInput": false
+                  },
+                  "userProperties": [],
+                  "typeProperties": {
+                    "source": {
+                      "type": "SqlSource",
+                      "sqlReaderQuery": {
+                        "value": "@concat('SELECT TOP 100 * FROM ', item().TABLE_NAME)",
+                        "type": "Expression"
+                      }
+                    },
+                    "sink": {
+                      "type": "DelimitedTextSink",
+                      "storeSettings": {
+                        "type": "AzureBlobStorageWriteSettings"
+                      },
+                      "formatSettings": {
+                        "type": "DelimitedTextWriteSettings",
+                        "firstRowAsHeader": true
+                      }
+                    },
+                    "enableStaging": false
+                  },
+                  "inputs": [
+                    {
+                      "referenceName": "AzureSqlDatabase1",
+                      "type": "DatasetReference"
+                    }
+                  ],
+                  "outputs": [
+                    {
+                      "referenceName": "AzureBlobStorage1",
+                      "type": "DatasetReference",
+                      "parameters": {
+                        "folderPath": {
+                          "value": "@concat('exports/', item().TABLE_NAME)",
+                          "type": "Expression"
+                        },
+                        "fileName": {
+                          "value": "@concat(item().TABLE_NAME, '.csv')",
+                          "type": "Expression"
+                        }
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        ],
+        "annotations": []
+      }
+    },
+    {
+      "type": "Microsoft.DataFactory/factories/pipelines",
+      "apiVersion": "2018-06-01",
+      "name": "[concat(parameters('factoryName'), '/FreeTier_StoredProcedure')]",
+      "properties": {
+        "activities": [
+          {
+            "name": "ExecuteStoredProcedure",
+            "type": "SqlServerStoredProcedure",
+            "dependsOn": [],
+            "policy": {
+              "timeout": "1.00:00:00",
+              "retry": 1,
+              "retryIntervalInSeconds": 30,
+              "secureOutput": false,
+              "secureInput": false
+            },
+            "userProperties": [],
+            "typeProperties": {
+              "storedProcedureName": "@pipeline().parameters.storedProcedureName",
+              "storedProcedureParameters": {}
+            },
+            "linkedServiceName": {
+              "referenceName": "AzureSqlDatabase1",
+              "type": "LinkedServiceReference"
+            }
+          }
+        ],
+        "parameters": {
+          "storedProcedureName": {
+            "type": "string",
+            "defaultValue": "sp_GetVersion"
+          }
+        },
+        "annotations": []
+      }
+    },
+    {
+      "type": "Microsoft.DataFactory/factories/pipelines",
+      "apiVersion": "2018-06-01",
+      "name": "[concat(parameters('factoryName'), '/FreeTier_Validation')]",
+      "properties": {
+        "activities": [
+          {
+            "name": "ValidateFile",
+            "type": "Validation",
+            "dependsOn": [],
+            "policy": {
+              "timeout": "1.00:00:00",
+              "retry": 1,
+              "retryIntervalInSeconds": 30,
+              "secureOutput": false,
+              "secureInput": false
+            },
+            "userProperties": [],
+            "typeProperties": {
+              "dataset": {
+                "referenceName": "AzureBlobStorage1",
+                "type": "DatasetReference",
+                "parameters": {
+                  "folderPath": "@pipeline().parameters.folderPath",
+                  "fileName": "@pipeline().parameters.fileName"
+                }
+              },
+              "timeout": "00:05:00",
+              "sleep": 10,
+              "minimumSize": 1
+            }
+          },
+          {
+            "name": "ProcessAfterValidation",
+            "type": "Copy",
+            "dependsOn": [
+              {
+                "activity": "ValidateFile",
+                "dependencyConditions": [
+                  "Succeeded"
+                ]
+              }
+            ],
+            "policy": {
+              "timeout": "1.00:00:00",
+              "retry": 1,
+              "retryIntervalInSeconds": 30,
+              "secureOutput": false,
+              "secureInput": false
+            },
+            "userProperties": [],
+            "typeProperties": {
+              "source": {
+                "type": "DelimitedTextSource",
+                "storeSettings": {
+                  "type": "AzureBlobStorageReadSettings"
+                },
+                "formatSettings": {
+                  "type": "DelimitedTextReadSettings",
+                  "firstRowAsHeader": true
+                }
+              },
+              "sink": {
+                "type": "SqlSink",
+                "writeBehavior": "Insert"
+              },
+              "enableStaging": false
+            },
+            "inputs": [
+              {
+                "referenceName": "AzureBlobStorage1",
+                "type": "DatasetReference"
+              }
+            ],
+            "outputs": [
+              {
+                "referenceName": "AzureSqlDatabase1",
+                "type": "DatasetReference",
+                "parameters": {
+                  "tableName": "@pipeline().parameters.destinationTable"
+                }
+              }
+            ]
+          }
+        ],
+        "parameters": {
+          "folderPath": {
+            "type": "string",
+            "defaultValue": "input"
+          },
+          "fileName": {
+            "type": "string",
+            "defaultValue": "data.csv"
+          },
+          "destinationTable": {
+            "type": "string",
+            "defaultValue": "ProcessedData"
+          }
+        },
+        "annotations": []
+      }
+    },
+    {
+      "type": "Microsoft.DataFactory/factories/pipelines",
+      "apiVersion": "2018-06-01",
+      "name": "[concat(parameters('factoryName'), '/FreeTier_GetMetadata')]",
+      "properties": {
+        "activities": [
+          {
+            "name": "GetFileMetadata",
+            "type": "GetMetadata",
+            "dependsOn": [],
+            "policy": {
+              "timeout": "1.00:00:00",
+              "retry": 1,
+              "retryIntervalInSeconds": 30,
+              "secureOutput": false,
+              "secureInput": false
+            },
+            "userProperties": [],
+            "typeProperties": {
+              "dataset": {
+                "referenceName": "AzureBlobStorage1",
+                "type": "DatasetReference",
+                "parameters": {
+                  "folderPath": "@pipeline().parameters.folderPath",
+                  "fileName": "@pipeline().parameters.fileName"
+                }
+              },
+              "fieldList": [
+                "exists",
+                "itemName",
+                "itemType",
+                "lastModified"
+              ],
+              "storeSettings": {
+                "type": "AzureBlobStorageReadSettings"
+              }
+            }
+          }
+        ],
+        "parameters": {
+          "folderPath": {
+            "type": "string",
+            "defaultValue": "data"
+          },
+          "fileName": {
+            "type": "string",
+            "defaultValue": "sample.csv"
+          }
+        },
+        "annotations": []
+      }
+    },
+    {
+      "type": "Microsoft.DataFactory/factories/pipelines",
+      "apiVersion": "2018-06-01",
+      "name": "[concat(parameters('factoryName'), '/FreeTier_DeleteActivity')]",
+      "properties": {
+        "activities": [
+          {
+            "name": "DeleteOldFiles",
+            "type": "Delete",
+            "dependsOn": [],
+            "policy": {
+              "timeout": "1.00:00:00",
+              "retry": 1,
+              "retryIntervalInSeconds": 30,
+              "secureOutput": false,
+              "secureInput": false
+            },
+            "userProperties": [],
+            "typeProperties": {
+              "dataset": {
+                "referenceName": "AzureBlobStorage1",
+                "type": "DatasetReference",
+                "parameters": {
+                  "folderPath": "@pipeline().parameters.folderPath"
+                }
+              },
+              "enableLogging": false,
+              "storeSettings": {
+                "type": "AzureBlobStorageReadSettings",
+                "recursive": false,
+                "wildcardFileName": "@pipeline().parameters.filePattern"
+              }
+            }
+          }
+        ],
+        "parameters": {
+          "folderPath": {
+            "type": "string",
+            "defaultValue": "archive"
+          },
+          "filePattern": {
+            "type": "string",
+            "defaultValue": "*.old"
+          }
+        },
+        "annotations": []
+      }
+    },
+    {
+      "type": "Microsoft.DataFactory/factories/pipelines",
+      "apiVersion": "2018-06-01",
+      "name": "[concat(parameters('factoryName'), '/FreeTier_SetVariable')]",
+      "properties": {
+        "variables": {
+          "processDate": {
+            "type": "String",
+            "defaultValue": "@formatDateTime(pipeline().TriggerTime, 'yyyy-MM-dd')"
+          },
+          "recordCount": {
+            "type": "Int",
+            "defaultValue": 0
+          }
+        },
+        "activities": [
+          {
+            "name": "SetProcessDate",
+            "type": "SetVariable",
+            "dependsOn": [],
+            "userProperties": [],
+            "typeProperties": {
+              "variableName": "processDate",
+              "value": {
+                "value": "@formatDateTime(utcnow(), 'yyyy-MM-dd HH:mm:ss')",
+                "type": "Expression"
+              }
+            }
+          },
+          {
+            "name": "GetRecordCount",
+            "type": "Lookup",
+            "dependsOn": [
+              {
+                "activity": "SetProcessDate",
+                "dependencyConditions": [
+                  "Succeeded"
+                ]
+              }
+            ],
+            "policy": {
+              "timeout": "1.00:00:00",
+              "retry": 1,
+              "retryIntervalInSeconds": 30,
+              "secureOutput": false,
+              "secureInput": false
+            },
+            "userProperties": [],
+            "typeProperties": {
+              "source": {
+                "type": "SqlSource",
+                "sqlReaderQuery": "SELECT COUNT(*) AS RecordCount FROM INFORMATION_SCHEMA.TABLES"
+              },
+              "dataset": {
+                "referenceName": "AzureSqlDatabase1",
+                "type": "DatasetReference"
+              },
+              "firstRowOnly": true
+            }
+          },
+          {
+            "name": "SetRecordCount",
+            "type": "SetVariable",
+            "dependsOn": [
+              {
+                "activity": "GetRecordCount",
+                "dependencyConditions": [
+                  "Succeeded"
+                ]
+              }
+            ],
+            "userProperties": [],
+            "typeProperties": {
+              "variableName": "recordCount",
+              "value": {
+                "value": "@int(activity('GetRecordCount').output.firstRow.RecordCount)",
+                "type": "Expression"
+              }
+            }
+          }
+        ],
+        "annotations": []
+      }
+    },
+    {
+      "type": "Microsoft.DataFactory/factories/pipelines",
+      "apiVersion": "2018-06-01",
+      "name": "[concat(parameters('factoryName'), '/FreeTier_WaitActivity')]",
+      "properties": {
+        "activities": [
+          {
+            "name": "WaitBeforeProcessing",
+            "type": "Wait",
+            "dependsOn": [],
+            "userProperties": [],
+            "typeProperties": {
+              "waitTimeInSeconds": {
+                "value": "@pipeline().parameters.waitSeconds",
+                "type": "Expression"
+              }
+            }
+          },
+          {
+            "name": "ProcessData",
+            "type": "Copy",
+            "dependsOn": [
+              {
+                "activity": "WaitBeforeProcessing",
+                "dependencyConditions": [
+                  "Succeeded"
+                ]
+              }
+            ],
+            "policy": {
+              "timeout": "1.00:00:00",
+              "retry": 1,
+              "retryIntervalInSeconds": 30,
+              "secureOutput": false,
+              "secureInput": false
+            },
+            "userProperties": [],
+            "typeProperties": {
+              "source": {
+                "type": "DelimitedTextSource",
+                "storeSettings": {
+                  "type": "AzureBlobStorageReadSettings"
+                },
+                "formatSettings": {
+                  "type": "DelimitedTextReadSettings",
+                  "firstRowAsHeader": true
+                }
+              },
+              "sink": {
+                "type": "SqlSink",
+                "writeBehavior": "Insert"
+              },
+              "enableStaging": false
+            },
+            "inputs": [
+              {
+                "referenceName": "AzureBlobStorage1",
+                "type": "DatasetReference"
+              }
+            ],
+            "outputs": [
+              {
+                "referenceName": "AzureSqlDatabase1",
+                "type": "DatasetReference"
+              }
+            ]
+          }
+        ],
+        "parameters": {
+          "waitSeconds": {
+            "type": "int",
+            "defaultValue": 30
+          }
+        },
+        "annotations": []
+      }
+    },
+    {
+      "type": "Microsoft.DataFactory/factories/pipelines",
+      "apiVersion": "2018-06-01",
+      "name": "[concat(parameters('factoryName'), '/FreeTier_ExecutePipeline')]",
+      "properties": {
+        "activities": [
+          {
+            "name": "ExecuteChildPipeline",
+            "type": "ExecutePipeline",
+            "dependsOn": [],
+            "policy": {
+              "timeout": "1.00:00:00",
+              "retry": 1,
+              "retryIntervalInSeconds": 30,
+              "secureOutput": false,
+              "secureInput": false
+            },
+            "userProperties": [],
+            "typeProperties": {
+              "pipeline": {
+                "referenceName": "@pipeline().parameters.childPipelineName",
+                "type": "PipelineReference"
+              },
+              "waitOnCompletion": true,
+              "parameters": {
+                "sourceFolder": {
+                  "value": "@pipeline().parameters.sourceFolder",
+                  "type": "Expression"
+                },
+                "destinationTable": {
+                  "value": "@pipeline().parameters.destinationTable",
+                  "type": "Expression"
+                }
+              }
+            }
+          }
+        ],
+        "parameters": {
+          "childPipelineName": {
+            "type": "string",
+            "defaultValue": "FreeTier_CopyBlobToSql"
+          },
+          "sourceFolder": {
+            "type": "string",
+            "defaultValue": "raw-data"
+          },
+          "destinationTable": {
+            "type": "string",
+            "defaultValue": "StagingTable"
+          }
+        },
+        "annotations": []
+      }
+    }
+  ]
+}
+
+

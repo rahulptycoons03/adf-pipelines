@@ -1,0 +1,79 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "factoryName": {
+      "value": "adf-free-tier-demo",
+      "metadata": {
+        "description": "Azure Data Factory name - must be globally unique"
+      }
+    },
+    "location": {
+      "value": "eastus",
+      "metadata": {
+        "description": "Location for resources (matches storage account location)"
+      }
+    },
+    "resourceGroupName": {
+      "value": "rg-dataeng-dev",
+      "metadata": {
+        "description": "Resource group name where storage account exists"
+      }
+    },
+    "storageAccountName": {
+      "value": "adlsdataplatformdev123",
+      "metadata": {
+        "description": "Your Data Lake Storage Gen2 account name"
+      }
+    },
+    "storageAccountKey": {
+      "value": "",
+      "metadata": {
+        "description": "Get this from Azure Portal: Storage Account > Access Keys. Copy Key1 value."
+      }
+    },
+    "dataLakeStorageAccountName": {
+      "value": "adlsdataplatformdev123",
+      "metadata": {
+        "description": "Your Data Lake Storage Gen2 account name (containers: gold, bronze, silver, scripts)"
+      }
+    },
+    "dataLakeStorageKey": {
+      "value": "",
+      "metadata": {
+        "description": "Data Lake Storage Gen2 account key (same as storageAccountKey)"
+      }
+    },
+    "azureSqlServerName": {
+      "value": "adf-sql-server-free",
+      "metadata": {
+        "description": "SQL Server name - must be globally unique. Use Serverless or Basic tier (low cost)"
+      }
+    },
+    "azureSqlDatabaseName": {
+      "value": "adfdatabase",
+      "metadata": {
+        "description": "SQL Database name. Use Serverless tier (auto-pauses) or Basic tier for low cost"
+      }
+    },
+    "sqlServerAdminUsername": {
+      "value": "sqladmin",
+      "metadata": {
+        "description": "SQL Server admin username"
+      }
+    },
+    "sqlServerAdminPassword": {
+      "value": "",
+      "metadata": {
+        "description": "SQL Server admin password (min 8 characters, must contain uppercase, lowercase, numbers, and special characters)"
+      }
+    },
+    "keyVaultName": {
+      "value": "adf-keyvault-free",
+      "metadata": {
+        "description": "Key Vault name - must be globally unique. Free tier available"
+      }
+    }
+  }
+}
+

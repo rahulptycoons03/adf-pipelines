@@ -1,0 +1,302 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "factoryName": {
+      "value": "adf-your-factory-name"
+    },
+    "location": {
+      "value": "eastus"
+    },
+    "azureSqlServerName": {
+      "value": "your-sql-server.database.windows.net"
+    },
+    "azureSqlDatabaseName": {
+      "value": "your-database-name"
+    },
+    "storageAccountName": {
+      "value": "yourstorageaccount"
+    },
+    "dataLakeStorageAccountName": {
+      "value": "yourdatalakeaccount"
+    },
+    "blobStorageAccountName": {
+      "value": "yourblobaccount"
+    },
+    "servicePrincipalId": {
+      "value": "your-service-principal-id"
+    },
+    "servicePrincipalKey": {
+      "value": "your-service-principal-key"
+    },
+    "tenantId": {
+      "value": "your-tenant-id"
+    },
+    "integrationRuntimeName": {
+      "value": "AutoResolveIntegrationRuntime"
+    },
+    "selfHostedIntegrationRuntimeName": {
+      "value": "SelfHosted-IR"
+    },
+    "keyVaultName": {
+      "value": "your-keyvault-name"
+    },
+    "storageAccountKey": {
+      "value": "your-storage-account-key"
+    },
+    "databricksWorkspaceUrl": {
+      "value": "https://adb-xxxxx.azuredatabricks.net"
+    },
+    "databricksWorkspaceResourceId": {
+      "value": "/subscriptions/xxxxx/resourceGroups/xxxxx/providers/Microsoft.Databricks/workspaces/xxxxx"
+    },
+    "databricksClusterId": {
+      "value": "xxxx-xxxx-xxxx-xxxx"
+    },
+    "httpServerUrl": {
+      "value": "https://api.example.com"
+    },
+    "httpUserName": {
+      "value": "your-username"
+    },
+    "restServiceUrl": {
+      "value": "https://api.example.com"
+    },
+    "restServiceAadResourceId": {
+      "value": "https://management.azure.com/"
+    },
+    "adlsAccountName": {
+      "value": "your-adls-account"
+    },
+    "amazonS3AccessKeyId": {
+      "value": "your-access-key-id"
+    },
+    "amazonS3ServiceUrl": {
+      "value": "https://s3.amazonaws.com"
+    },
+    "fileStorageUserId": {
+      "value": "your-file-storage-user"
+    },
+    "onPremisesFileServerHost": {
+      "value": "\\\\server\\share"
+    },
+    "onPremisesFileServerUserId": {
+      "value": "domain\\username"
+    },
+    "ftpServerHost": {
+      "value": "ftp.example.com"
+    },
+    "ftpUserName": {
+      "value": "your-ftp-username"
+    },
+    "sftpServerHost": {
+      "value": "sftp.example.com"
+    },
+    "sftpUserName": {
+      "value": "your-sftp-username"
+    },
+    "azureFunctionUrl": {
+      "value": "https://your-function-app.azurewebsites.net"
+    },
+    "azureMLEndpoint": {
+      "value": "https://ussouthcentral.services.azureml.net/workspaces/xxxxx/services/xxxxx/execute?api-version=2.0"
+    },
+    "mlWorkspaceName": {
+      "value": "your-ml-workspace"
+    },
+    "azureSearchServiceName": {
+      "value": "your-search-service"
+    },
+    "azureBatchAccountName": {
+      "value": "your-batch-account"
+    },
+    "azureBatchPoolName": {
+      "value": "your-pool-name"
+    },
+    "adxClusterName": {
+      "value": "your-adx-cluster"
+    },
+    "adxRegion": {
+      "value": "southcentralus"
+    },
+    "adxDatabaseName": {
+      "value": "your-database"
+    },
+    "amazonRedshiftServer": {
+      "value": "your-redshift-server.amazonaws.com"
+    },
+    "amazonRedshiftDatabase": {
+      "value": "your-database"
+    },
+    "amazonRedshiftUsername": {
+      "value": "your-username"
+    },
+    "dynamicsServiceUri": {
+      "value": "https://yourorg.crm.dynamics.com"
+    },
+    "dynamicsCrmServiceUri": {
+      "value": "https://yourorg.crm.dynamics.com"
+    },
+    "salesforceEnvironmentUrl": {
+      "value": "https://login.salesforce.com"
+    },
+    "salesforceUsername": {
+      "value": "your-username"
+    },
+    "sapEccUrl": {
+      "value": "https://sap-server.example.com:8000"
+    },
+    "sapEccUsername": {
+      "value": "your-username"
+    },
+    "sapOpenHubServer": {
+      "value": "sap-server.example.com"
+    },
+    "sapOpenHubSystemNumber": {
+      "value": "00"
+    },
+    "sapOpenHubClientId": {
+      "value": "100"
+    },
+    "sapOpenHubUsername": {
+      "value": "your-username"
+    },
+    "sapOpenHubMessageServer": {
+      "value": "message-server.example.com"
+    },
+    "sapOpenHubMessageServerService": {
+      "value": "3600"
+    },
+    "sapOpenHubLogonGroup": {
+      "value": "PUBLIC"
+    },
+    "sapTableServer": {
+      "value": "sap-server.example.com"
+    },
+    "sapTableSystemNumber": {
+      "value": "00"
+    },
+    "sapTableClientId": {
+      "value": "100"
+    },
+    "sapTableUsername": {
+      "value": "your-username"
+    },
+    "sapBwServer": {
+      "value": "sap-bw-server.example.com"
+    },
+    "sapBwSystemNumber": {
+      "value": "00"
+    },
+    "sapBwClientId": {
+      "value": "100"
+    },
+    "sapBwUsername": {
+      "value": "your-username"
+    },
+    "teradataServer": {
+      "value": "teradata-server.example.com"
+    },
+    "teradataUsername": {
+      "value": "your-username"
+    },
+    "db2Server": {
+      "value": "db2-server.example.com"
+    },
+    "db2Database": {
+      "value": "your-database"
+    },
+    "db2Username": {
+      "value": "your-username"
+    },
+    "sybaseServer": {
+      "value": "sybase-server.example.com"
+    },
+    "sybaseDatabase": {
+      "value": "your-database"
+    },
+    "sybaseUsername": {
+      "value": "your-username"
+    },
+    "odataUrl": {
+      "value": "https://services.odata.org/v4/TripPinServiceRW/"
+    },
+    "odataUsername": {
+      "value": "your-username"
+    },
+    "gcsAccessKeyId": {
+      "value": "your-access-key-id"
+    },
+    "gcsServiceUrl": {
+      "value": "https://storage.googleapis.com"
+    },
+    "hdfsUrl": {
+      "value": "http://hdfs-server.example.com:50070"
+    },
+    "hdfsUsername": {
+      "value": "your-username"
+    },
+    "hiveHost": {
+      "value": "hive-server.example.com"
+    },
+    "impalaHost": {
+      "value": "impala-server.example.com"
+    },
+    "prestoHost": {
+      "value": "presto-server.example.com"
+    },
+    "prestoCatalog": {
+      "value": "hive"
+    },
+    "sparkHost": {
+      "value": "spark-server.example.com"
+    },
+    "sparkUsername": {
+      "value": "your-username"
+    },
+    "mongoDbServer": {
+      "value": "mongodb://mongo-server.example.com:27017"
+    },
+    "mongoDbUsername": {
+      "value": "your-username"
+    },
+    "mongoDbAuthSource": {
+      "value": "admin"
+    },
+    "cassandraHost": {
+      "value": "cassandra-server.example.com"
+    },
+    "cassandraUsername": {
+      "value": "your-username"
+    },
+    "elasticsearchEndpoint": {
+      "value": "https://elasticsearch.example.com:9200"
+    },
+    "elasticsearchUsername": {
+      "value": "your-username"
+    },
+    "googleBigQueryProject": {
+      "value": "your-gcp-project-id"
+    },
+    "hbaseHost": {
+      "value": "hbase-server.example.com"
+    },
+    "phoenixHost": {
+      "value": "phoenix-server.example.com"
+    },
+    "zohoEncryptedCredential": {
+      "value": ""
+    },
+    "xeroEncryptedCredential": {
+      "value": ""
+    },
+    "squareEncryptedCredential": {
+      "value": ""
+    },
+    "genericHttpUrl": {
+      "value": "https://api.example.com"
+    }
+  }
+}
+
+

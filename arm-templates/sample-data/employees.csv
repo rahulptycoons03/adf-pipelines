@@ -1,0 +1,30 @@
+EmployeeID,FirstName,LastName,Email,Department,Position,Salary,JoinDate,ManagerID,Status
+1001,John,Smith,john.smith@company.com,Engineering,Senior Software Engineer,95000,2020-01-15,2001,Active
+1002,Emily,Johnson,emily.johnson@company.com,Marketing,Marketing Manager,85000,2019-03-20,2002,Active
+1003,Michael,Williams,michael.williams@company.com,Sales,Sales Representative,65000,2021-06-10,2003,Active
+1004,Sarah,Brown,sarah.brown@company.com,HR,HR Specialist,70000,2020-11-05,2004,Active
+1005,David,Jones,david.jones@company.com,Engineering,Software Engineer,80000,2021-02-14,2001,Active
+1006,Jennifer,Garcia,jennifer.garcia@company.com,Finance,Financial Analyst,75000,2019-08-22,2005,Active
+1007,Robert,Miller,robert.miller@company.com,Operations,Operations Manager,88000,2020-04-30,2006,Active
+1008,Amanda,Davis,amanda.davis@company.com,Marketing,Marketing Coordinator,60000,2021-09-12,2002,Active
+1009,James,Rodriguez,james.rodriguez@company.com,Engineering,DevOps Engineer,92000,2020-07-18,2001,Active
+1010,Lisa,Martinez,lisa.martinez@company.com,Sales,Sales Manager,90000,2019-12-01,2003,Active
+1011,Christopher,Lee,christopher.lee@company.com,IT,IT Support Specialist,68000,2021-01-25,2007,Active
+1012,Jessica,White,jessica.white@company.com,Finance,Accounting Manager,82000,2020-03-08,2005,Active
+1013,Daniel,Harris,daniel.harris@company.com,Engineering,Junior Software Engineer,60000,2022-01-10,2001,Active
+1014,Ashley,Clark,ashley.clark@company.com,HR,HR Manager,87000,2019-06-15,2004,Active
+1015,Matthew,Lewis,matthew.lewis@company.com,Operations,Warehouse Supervisor,72000,2020-09-20,2006,Active
+1016,Stephanie,Walker,stephanie.walker@company.com,Marketing,Content Writer,58000,2021-04-05,2002,Active
+1017,Andrew,Hall,andrew.hall@company.com,Sales,Sales Representative,67000,2021-11-15,2003,Active
+1018,Nicole,Allen,nicole.allen@company.com,Finance,Accounts Payable,64000,2022-02-28,2005,Active
+1019,Joshua,Young,joshua.young@company.com,IT,Network Administrator,78000,2020-05-12,2007,Active
+1020,Lauren,King,lauren.king@company.com,HR,Recruiter,66000,2021-07-22,2004,Active
+2001,Richard,Wright,richard.wright@company.com,Engineering,Engineering Manager,110000,2018-01-10,NULL,Active
+2002,Mary,Lopez,mary.lopez@company.com,Marketing,Marketing Director,105000,2018-03-15,NULL,Active
+2003,Joseph,Hill,joseph.hill@company.com,Sales,Sales Director,108000,2017-11-20,NULL,Active
+2004,Patricia,Scott,patricia.scott@company.com,HR,HR Director,104000,2018-05-08,NULL,Active
+2005,Thomas,Green,thomas.green@company.com,Finance,Finance Director,107000,2018-02-12,NULL,Active
+2006,Elizabeth,Adams,elizabeth.adams@company.com,Operations,Operations Director,106000,2018-04-25,NULL,Active
+2007,Kenneth,Baker,kenneth.baker@company.com,IT,IT Director,109000,2018-01-30,NULL,Active
+
+

@@ -1,0 +1,944 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "factoryName": {
+      "type": "string",
+      "metadata": {
+        "description": "Name of the Data Factory"
+      }
+    }
+  },
+  "resources": [
+    {
+      "type": "Microsoft.DataFactory/factories/pipelines",
+      "apiVersion": "2018-06-01",
+      "name": "[concat(parameters('factoryName'), '/Pipeline_WebActivity')]",
+      "properties": {
+        "activities": [
+          {
+            "name": "CallRestAPI",
+            "type": "WebActivity",
+            "dependsOn": [],
+            "policy": {
+              "timeout": "7.00:00:00",
+              "retry": 0,
+              "retryIntervalInSeconds": 30,
+              "secureOutput": false,
+              "secureInput": false
+            },
+            "userProperties": [],
+            "typeProperties": {
+              "url": "@pipeline().parameters.apiUrl",
+              "method": "POST",
+              "headers": {
+                "Content-Type": "application/json",
+                "Authorization": {
+                  "value": "@concat('Bearer ', pipeline().parameters.apiToken)",
+                  "type": "Expression"
+                }
+              },
+              "body": {
+                "value": "@json(concat('{\"runId\":\"', pipeline().RunId, '\",\"timestamp\":\"', utcnow(), '\"}'))",
+                "type": "Expression"
+              },
+              "authentication": {
+                "type": "MSI",
+                "resource": "@pipeline().parameters.resourceUrl"
+              }
+            }
+          },
+          {
+            "name": "ProcessResponse",
+            "type": "Copy",
+            "dependsOn": [
+              {
+                "activity": "CallRestAPI",
+                "dependencyConditions": [
+                  "Succeeded"
+                ]
+              }
+            ],
+            "policy": {
+              "timeout": "7.00:00:00",
+              "retry": 0,
+              "retryIntervalInSeconds": 30,
+              "secureOutput": false,
+              "secureInput": false
+            },
+            "userProperties": [],
+            "typeProperties": {
+              "source": {
+                "type": "JsonSource",
+                "storeSettings": {
+                  "type": "AzureBlobStorageReadSettings"
+                },
+                "formatSettings": {
+                  "type": "JsonReadSettings"
+                }
+              },
+              "sink": {
+                "type": "SqlSink"
+              }
+            },
+            "inputs": [
+              {
+                "referenceName": "AzureBlobStorage1",
+                "type": "DatasetReference",
+                "parameters": {
+                  "folderPath": "api-responses",
+                  "fileName": "@concat('response_', pipeline().RunId, '.json')"
+                }
+              }
+            ],
+            "outputs": [
+              {
+                "referenceName": "AzureSqlDatabase1",
+                "type": "DatasetReference",
+                "parameters": {
+                  "tableName": "ApiResponses"
+                }
+              }
+            ]
+          }
+        ],
+        "parameters": {
+          "apiUrl": {
+            "type": "string",
+            "defaultValue": "https://api.example.com/data"
+          },
+          "apiToken": {
+            "type": "string",
+            "defaultValue": ""
+          },
+          "resourceUrl": {
+            "type": "string",
+            "defaultValue": "https://management.azure.com/"
+          }
+        },
+        "annotations": []
+      }
+    },
+    {
+      "type": "Microsoft.DataFactory/factories/pipelines",
+      "apiVersion": "2018-06-01",
+      "name": "[concat(parameters('factoryName'), '/Pipeline_CustomActivity')]",
+      "properties": {
+        "activities": [
+          {
+            "name": "RunCustomActivity",
+            "type": "Custom",
+            "dependsOn": [],
+            "policy": {
+              "timeout": "7.00:00:00",
+              "retry": 0,
+              "retryIntervalInSeconds": 30,
+              "secureOutput": false,
+              "secureInput": false
+            },
+            "userProperties": [],
+            "typeProperties": {
+              "command": "powershell.exe",
+              "folderPath": "custom-scripts",
+              "resourceLinkedService": {
+                "referenceName": "AzureBlobStorage1",
+                "type": "LinkedServiceReference"
+              },
+              "referenceObjects": {
+                "linkedServices": [],
+                "datasets": [
+                  {
+                    "referenceName": "AzureBlobStorage1",
+                    "type": "DatasetReference"
+                  }
+                ]
+              },
+              "extendedProperties": {},
+              "autoUserSpecification": "Administrator"
+            },
+            "linkedServiceName": {
+              "referenceName": "AzureBatch1",
+              "type": "LinkedServiceReference"
+            }
+          }
+        ],
+        "annotations": []
+      }
+    },
+    {
+      "type": "Microsoft.DataFactory/factories/pipelines",
+      "apiVersion": "2018-06-01",
+      "name": "[concat(parameters('factoryName'), '/Pipeline_ExecuteSSISPackage')]",
+      "properties": {
+        "activities": [
+          {
+            "name": "ExecuteSSISPackage",
+            "type": "ExecuteSSISPackage",
+            "dependsOn": [],
+            "policy": {
+              "timeout": "7.00:00:00",
+              "retry": 0,
+              "retryIntervalInSeconds": 30,
+              "secureOutput": false,
+              "secureInput": false
+            },
+            "userProperties": [],
+            "typeProperties": {
+              "packageLocation": {
+                "packagePath": "@pipeline().parameters.packagePath",
+                "type": "SSISDB",
+                "typeProperties": {
+                  "packagePassword": {
+                    "type": "AzureKeyVaultSecret",
+                    "store": {
+                      "referenceName": "AzureKeyVault1",
+                      "type": "LinkedServiceReference"
+                    },
+                    "secretName": "SSISPackagePassword"
+                  }
+                }
+              },
+              "connectVia": {
+                "referenceName": "@pipeline().parameters.integrationRuntimeName",
+                "type": "IntegrationRuntimeReference"
+              },
+              "runtime": "x64",
+              "loggingLevel": "Basic",
+              "environmentPath": "@pipeline().parameters.environmentPath",
+              "executionCredential": {
+                "domain": "@pipeline().parameters.domain",
+                "userName": "@pipeline().parameters.userName",
+                "password": {
+                  "type": "AzureKeyVaultSecret",
+                  "store": {
+                    "referenceName": "AzureKeyVault1",
+                    "type": "LinkedServiceReference"
+                  },
+                  "secretName": "SSISExecutionPassword"
+                }
+              },
+              "projectConnectionManagers": {},
+              "packageConnectionManagers": {},
+              "propertyOverrides": {
+                "Property1": "@pipeline().parameters.propertyValue1",
+                "Property2": "@pipeline().parameters.propertyValue2"
+              }
+            }
+          }
+        ],
+        "parameters": {
+          "packagePath": {
+            "type": "string",
+            "defaultValue": "/SSISDB/MyProject/MyPackage.dtsx"
+          },
+          "integrationRuntimeName": {
+            "type": "string",
+            "defaultValue": "SSIS-IR"
+          },
+          "environmentPath": {
+            "type": "string",
+            "defaultValue": "/SSISDB/MyProject/MyEnvironment"
+          },
+          "domain": {
+            "type": "string",
+            "defaultValue": ""
+          },
+          "userName": {
+            "type": "string",
+            "defaultValue": ""
+          },
+          "propertyValue1": {
+            "type": "string",
+            "defaultValue": "Value1"
+          },
+          "propertyValue2": {
+            "type": "string",
+            "defaultValue": "Value2"
+          }
+        },
+        "annotations": []
+      }
+    },
+    {
+      "type": "Microsoft.DataFactory/factories/pipelines",
+      "apiVersion": "2018-06-01",
+      "name": "[concat(parameters('factoryName'), '/Pipeline_AzureFunction')]",
+      "properties": {
+        "activities": [
+          {
+            "name": "CallAzureFunction",
+            "type": "AzureFunctionActivity",
+            "dependsOn": [],
+            "policy": {
+              "timeout": "7.00:00:00",
+              "retry": 0,
+              "retryIntervalInSeconds": 30,
+              "secureOutput": false,
+              "secureInput": false
+            },
+            "userProperties": [],
+            "typeProperties": {
+              "functionName": "@pipeline().parameters.functionName",
+              "method": "POST",
+              "body": {
+                "value": "@json(concat('{\"input\":\"', pipeline().parameters.inputData, '\",\"timestamp\":\"', utcnow(), '\"}'))",
+                "type": "Expression"
+              }
+            },
+            "linkedServiceName": {
+              "referenceName": "AzureFunction1",
+              "type": "LinkedServiceReference"
+            }
+          }
+        ],
+        "parameters": {
+          "functionName": {
+            "type": "string",
+            "defaultValue": "ProcessData"
+          },
+          "inputData": {
+            "type": "string",
+            "defaultValue": "test data"
+          }
+        },
+        "annotations": []
+      }
+    },
+    {
+      "type": "Microsoft.DataFactory/factories/pipelines",
+      "apiVersion": "2018-06-01",
+      "name": "[concat(parameters('factoryName'), '/Pipeline_Lookup')]",
+      "properties": {
+        "activities": [
+          {
+            "name": "LookupCustomerData",
+            "type": "Lookup",
+            "dependsOn": [],
+            "policy": {
+              "timeout": "7.00:00:00",
+              "retry": 0,
+              "retryIntervalInSeconds": 30,
+              "secureOutput": false,
+              "secureInput": false
+            },
+            "userProperties": [],
+            "typeProperties": {
+              "source": {
+                "type": "SqlSource",
+                "sqlReaderQuery": {
+                  "value": "@concat('SELECT * FROM Customers WHERE CustomerId = ', pipeline().parameters.customerId)",
+                  "type": "Expression"
+                },
+                "partitionOption": "None"
+              },
+              "dataset": {
+                "referenceName": "AzureSqlDatabase1",
+                "type": "DatasetReference"
+              },
+              "firstRowOnly": true
+            }
+          },
+          {
+            "name": "ProcessCustomer",
+            "type": "Copy",
+            "dependsOn": [
+              {
+                "activity": "LookupCustomerData",
+                "dependencyConditions": [
+                  "Succeeded"
+                ]
+              }
+            ],
+            "policy": {
+              "timeout": "7.00:00:00",
+              "retry": 0,
+              "retryIntervalInSeconds": 30,
+              "secureOutput": false,
+              "secureInput": false
+            },
+            "userProperties": [],
+            "typeProperties": {
+              "source": {
+                "type": "SqlSource",
+                "sqlReaderQuery": {
+                  "value": "@concat('SELECT * FROM Orders WHERE CustomerId = ', activity('LookupCustomerData').output.firstRow.CustomerId)",
+                  "type": "Expression"
+                }
+              },
+              "sink": {
+                "type": "SqlSink"
+              }
+            },
+            "inputs": [
+              {
+                "referenceName": "AzureSqlDatabase1",
+                "type": "DatasetReference"
+              }
+            ],
+            "outputs": [
+              {
+                "referenceName": "AzureSqlDatabase1",
+                "type": "DatasetReference"
+              }
+            ]
+          }
+        ],
+        "parameters": {
+          "customerId": {
+            "type": "int",
+            "defaultValue": 1
+          }
+        },
+        "annotations": []
+      }
+    },
+    {
+      "type": "Microsoft.DataFactory/factories/pipelines",
+      "apiVersion": "2018-06-01",
+      "name": "[concat(parameters('factoryName'), '/Pipeline_DeleteActivity')]",
+      "properties": {
+        "activities": [
+          {
+            "name": "DeleteOldFiles",
+            "type": "Delete",
+            "dependsOn": [],
+            "policy": {
+              "timeout": "7.00:00:00",
+              "retry": 0,
+              "retryIntervalInSeconds": 30,
+              "secureOutput": false,
+              "secureInput": false
+            },
+            "userProperties": [],
+            "typeProperties": {
+              "dataset": {
+                "referenceName": "AzureBlobStorage1",
+                "type": "DatasetReference",
+                "parameters": {
+                  "folderPath": "@pipeline().parameters.folderPath"
+                }
+              },
+              "enableLogging": true,
+              "storeSettings": {
+                "type": "AzureBlobStorageReadSettings",
+                "recursive": true,
+                "wildcardFileName": "@pipeline().parameters.filePattern"
+              },
+              "logStorageSettings": {
+                "linkedServiceName": {
+                  "referenceName": "AzureBlobStorage1",
+                  "type": "LinkedServiceReference"
+                },
+                "path": "delete-logs"
+              }
+            }
+          }
+        ],
+        "parameters": {
+          "folderPath": {
+            "type": "string",
+            "defaultValue": "archive"
+          },
+          "filePattern": {
+            "type": "string",
+            "defaultValue": "*.old"
+          }
+        },
+        "annotations": []
+      }
+    },
+    {
+      "type": "Microsoft.DataFactory/factories/pipelines",
+      "apiVersion": "2018-06-01",
+      "name": "[concat(parameters('factoryName'), '/Pipeline_ScriptActivity')]",
+      "properties": {
+        "activities": [
+          {
+            "name": "ExecuteSqlScript",
+            "type": "Script",
+            "dependsOn": [],
+            "policy": {
+              "timeout": "7.00:00:00",
+              "retry": 0,
+              "retryIntervalInSeconds": 30,
+              "secureOutput": false,
+              "secureInput": false
+            },
+            "userProperties": [],
+            "typeProperties": {
+              "scripts": [
+                {
+                  "type": "NonQuery",
+                  "text": {
+                    "value": "@concat('UPDATE Customers SET LastProcessedDate = GETDATE() WHERE CustomerId IN (', pipeline().parameters.customerIds, ')')",
+                    "type": "Expression"
+                  }
+                }
+              ],
+              "loggingLevel": "Information"
+            },
+            "linkedServiceName": {
+              "referenceName": "AzureSqlDatabase1",
+              "type": "LinkedServiceReference"
+            }
+          }
+        ],
+        "parameters": {
+          "customerIds": {
+            "type": "string",
+            "defaultValue": "1,2,3"
+          }
+        },
+        "annotations": []
+      }
+    },
+    {
+      "type": "Microsoft.DataFactory/factories/pipelines",
+      "apiVersion": "2018-06-01",
+      "name": "[concat(parameters('factoryName'), '/Pipeline_GetMetadata')]",
+      "properties": {
+        "activities": [
+          {
+            "name": "GetFileMetadata",
+            "type": "GetMetadata",
+            "dependsOn": [],
+            "policy": {
+              "timeout": "7.00:00:00",
+              "retry": 0,
+              "retryIntervalInSeconds": 30,
+              "secureOutput": false,
+              "secureInput": false
+            },
+            "userProperties": [],
+            "typeProperties": {
+              "dataset": {
+                "referenceName": "AzureBlobStorage1",
+                "type": "DatasetReference",
+                "parameters": {
+                  "folderPath": "@pipeline().parameters.folderPath",
+                  "fileName": "@pipeline().parameters.fileName"
+                }
+              },
+              "fieldList": [
+                "itemName",
+                "itemType",
+                "structure",
+                "columnCount",
+                "exists",
+                "modifiedDatetime",
+                "createdDatetime",
+                "lastModified",
+                "lastAccessTime"
+              ],
+              "storeSettings": {
+                "type": "AzureBlobStorageReadSettings"
+              },
+              "formatSettings": {
+                "type": "DelimitedTextReadSettings"
+              }
+            }
+          },
+          {
+            "name": "ProcessBasedOnMetadata",
+            "type": "IfCondition",
+            "dependsOn": [
+              {
+                "activity": "GetFileMetadata",
+                "dependencyConditions": [
+                  "Succeeded"
+                ]
+              }
+            ],
+            "userProperties": [],
+            "typeProperties": {
+              "expression": {
+                "value": "@and(activity('GetFileMetadata').output.exists, greater(int(activity('GetFileMetadata').output.columnCount), 0))",
+                "type": "Expression"
+              },
+              "ifTrueActivities": [
+                {
+                  "name": "CopyFile",
+                  "type": "Copy",
+                  "dependsOn": [],
+                  "policy": {
+                    "timeout": "7.00:00:00",
+                    "retry": 0,
+                    "retryIntervalInSeconds": 30,
+                    "secureOutput": false,
+                    "secureInput": false
+                  },
+                  "userProperties": [],
+                  "typeProperties": {
+                    "source": {
+                      "type": "BlobSource"
+                    },
+                    "sink": {
+                      "type": "SqlSink"
+                    }
+                  },
+                  "inputs": [
+                    {
+                      "referenceName": "AzureBlobStorage1",
+                      "type": "DatasetReference"
+                    }
+                  ],
+                  "outputs": [
+                    {
+                      "referenceName": "AzureSqlDatabase1",
+                      "type": "DatasetReference"
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        ],
+        "parameters": {
+          "folderPath": {
+            "type": "string",
+            "defaultValue": "source"
+          },
+          "fileName": {
+            "type": "string",
+            "defaultValue": "data.csv"
+          }
+        },
+        "annotations": []
+      }
+    },
+    {
+      "type": "Microsoft.DataFactory/factories/pipelines",
+      "apiVersion": "2018-06-01",
+      "name": "[concat(parameters('factoryName'), '/Pipeline_Validation')]",
+      "properties": {
+        "activities": [
+          {
+            "name": "ValidateFileExists",
+            "type": "Validation",
+            "dependsOn": [],
+            "policy": {
+              "timeout": "7.00:00:00",
+              "retry": 0,
+              "retryIntervalInSeconds": 30,
+              "secureOutput": false,
+              "secureInput": false
+            },
+            "userProperties": [],
+            "typeProperties": {
+              "dataset": {
+                "referenceName": "AzureBlobStorage1",
+                "type": "DatasetReference",
+                "parameters": {
+                  "folderPath": "@pipeline().parameters.folderPath",
+                  "fileName": "@pipeline().parameters.fileName"
+                }
+              },
+              "timeout": "00:05:00",
+              "sleep": 10,
+              "minimumSize": 1000,
+              "childItems": true
+            }
+          },
+          {
+            "name": "ProcessAfterValidation",
+            "type": "Copy",
+            "dependsOn": [
+              {
+                "activity": "ValidateFileExists",
+                "dependencyConditions": [
+                  "Succeeded"
+                ]
+              }
+            ],
+            "policy": {
+              "timeout": "7.00:00:00",
+              "retry": 0,
+              "retryIntervalInSeconds": 30,
+              "secureOutput": false,
+              "secureInput": false
+            },
+            "userProperties": [],
+            "typeProperties": {
+              "source": {
+                "type": "BlobSource"
+              },
+              "sink": {
+                "type": "SqlSink"
+              }
+            },
+            "inputs": [
+              {
+                "referenceName": "AzureBlobStorage1",
+                "type": "DatasetReference"
+              }
+            ],
+            "outputs": [
+              {
+                "referenceName": "AzureSqlDatabase1",
+                "type": "DatasetReference"
+              }
+            ]
+          }
+        ],
+        "parameters": {
+          "folderPath": {
+            "type": "string",
+            "defaultValue": "source"
+          },
+          "fileName": {
+            "type": "string",
+            "defaultValue": "data.csv"
+          }
+        },
+        "annotations": []
+      }
+    },
+    {
+      "type": "Microsoft.DataFactory/factories/pipelines",
+      "apiVersion": "2018-06-01",
+      "name": "[concat(parameters('factoryName'), '/Pipeline_Webhook')]",
+      "properties": {
+        "activities": [
+          {
+            "name": "TriggerWebhook",
+            "type": "Webhook",
+            "dependsOn": [],
+            "policy": {
+              "timeout": "7.00:00:00",
+              "retry": 0,
+              "retryIntervalInSeconds": 30,
+              "secureOutput": false,
+              "secureInput": false
+            },
+            "userProperties": [],
+            "typeProperties": {
+              "url": "@pipeline().parameters.webhookUrl",
+              "method": "POST",
+              "timeout": "00:05:00",
+              "headers": {
+                "Content-Type": "application/json"
+              },
+              "body": {
+                "value": "@json(concat('{\"runId\":\"', pipeline().RunId, '\",\"timestamp\":\"', utcnow(), '\"}'))",
+                "type": "Expression"
+              }
+            }
+          },
+          {
+            "name": "ProcessAfterWebhook",
+            "type": "Copy",
+            "dependsOn": [
+              {
+                "activity": "TriggerWebhook",
+                "dependencyConditions": [
+                  "Succeeded"
+                ]
+              }
+            ],
+            "policy": {
+              "timeout": "7.00:00:00",
+              "retry": 0,
+              "retryIntervalInSeconds": 30,
+              "secureOutput": false,
+              "secureInput": false
+            },
+            "userProperties": [],
+            "typeProperties": {
+              "source": {
+                "type": "BlobSource"
+              },
+              "sink": {
+                "type": "SqlSink"
+              }
+            },
+            "inputs": [
+              {
+                "referenceName": "AzureBlobStorage1",
+                "type": "DatasetReference"
+              }
+            ],
+            "outputs": [
+              {
+                "referenceName": "AzureSqlDatabase1",
+                "type": "DatasetReference"
+              }
+            ]
+          }
+        ],
+        "parameters": {
+          "webhookUrl": {
+            "type": "string",
+            "defaultValue": "https://example.com/webhook"
+          }
+        },
+        "annotations": []
+      }
+    },
+    {
+      "type": "Microsoft.DataFactory/factories/pipelines",
+      "apiVersion": "2018-06-01",
+      "name": "[concat(parameters('factoryName'), '/Pipeline_SynapseNotebook')]",
+      "properties": {
+        "activities": [
+          {
+            "name": "ExecuteSynapseNotebook",
+            "type": "SynapseNotebook",
+            "dependsOn": [],
+            "policy": {
+              "timeout": "7.00:00:00",
+              "retry": 0,
+              "retryIntervalInSeconds": 30,
+              "secureOutput": false,
+              "secureInput": false
+            },
+            "userProperties": [],
+            "typeProperties": {
+              "notebookPath": "@pipeline().parameters.notebookPath",
+              "sparkPool": {
+                "referenceName": "SparkPool",
+                "type": "BigDataPoolReference"
+              },
+              "parameters": {
+                "input_path": {
+                  "value": "@pipeline().parameters.inputPath",
+                  "type": "Expression"
+                },
+                "output_path": {
+                  "value": "@pipeline().parameters.outputPath",
+                  "type": "Expression"
+                }
+              },
+              "numExecutors": 2,
+              "driverSize": "Small",
+              "executorSize": "Small",
+              "configuration": {
+                "spark.dynamicAllocation.enabled": "true",
+                "spark.dynamicAllocation.minExecutors": "1",
+                "spark.dynamicAllocation.maxExecutors": "3"
+              }
+            },
+            "linkedServiceName": {
+              "referenceName": "AzureSynapseWorkspace",
+              "type": "LinkedServiceReference"
+            }
+          }
+        ],
+        "parameters": {
+          "notebookPath": {
+            "type": "string",
+            "defaultValue": "/TransformData"
+          },
+          "inputPath": {
+            "type": "string",
+            "defaultValue": "/raw/data"
+          },
+          "outputPath": {
+            "type": "string",
+            "defaultValue": "/processed/data"
+          }
+        },
+        "annotations": []
+      }
+    },
+    {
+      "type": "Microsoft.DataFactory/factories/pipelines",
+      "apiVersion": "2018-06-01",
+      "name": "[concat(parameters('factoryName'), '/Pipeline_SynapseSparkJob')]",
+      "properties": {
+        "activities": [
+          {
+            "name": "ExecuteSynapseSparkJob",
+            "type": "SparkJob",
+            "dependsOn": [],
+            "policy": {
+              "timeout": "7.00:00:00",
+              "retry": 0,
+              "retryIntervalInSeconds": 30,
+              "secureOutput": false,
+              "secureInput": false
+            },
+            "userProperties": [],
+            "typeProperties": {
+              "file": {
+                "type": "SparkJobDefinitionReference",
+                "referenceName": "@pipeline().parameters.sparkJobDefinitionName"
+              },
+              "sparkPool": {
+                "referenceName": "SparkPool",
+                "type": "BigDataPoolReference"
+              },
+              "args": [
+                "@pipeline().parameters.inputPath",
+                "@pipeline().parameters.outputPath"
+              ],
+              "conf": {
+                "spark.sql.adaptive.enabled": "true"
+              },
+              "numExecutors": 2,
+              "driverSize": "Medium",
+              "executorSize": "Medium"
+            },
+            "linkedServiceName": {
+              "referenceName": "AzureSynapseWorkspace",
+              "type": "LinkedServiceReference"
+            }
+          }
+        ],
+        "parameters": {
+          "sparkJobDefinitionName": {
+            "type": "string",
+            "defaultValue": "TransformDataJob"
+          },
+          "inputPath": {
+            "type": "string",
+            "defaultValue": "/raw/data"
+          },
+          "outputPath": {
+            "type": "string",
+            "defaultValue": "/processed/data"
+          }
+        },
+        "annotations": []
+      }
+    },
+    {
+      "type": "Microsoft.DataFactory/factories/pipelines",
+      "apiVersion": "2018-06-01",
+      "name": "[concat(parameters('factoryName'), '/Pipeline_SynapseSqlScript')]",
+      "properties": {
+        "activities": [
+          {
+            "name": "ExecuteSynapseSqlScript",
+            "type": "SqlServerStoredProcedure",
+            "dependsOn": [],
+            "policy": {
+              "timeout": "7.00:00:00",
+              "retry": 0,
+              "retryIntervalInSeconds": 30,
+              "secureOutput": false,
+              "secureInput": false
+            },
+            "userProperties": [],
+            "typeProperties": {
+              "storedProcedureName": "[concat('EXEC ', @pipeline().parameters.sqlScript)]",
+              "storedProcedureParameters": {}
+            },
+            "linkedServiceName": {
+              "referenceName": "AzureSynapseWorkspace",
+              "type": "LinkedServiceReference"
+            }
+          }
+        ],
+        "parameters": {
+          "sqlScript": {
+            "type": "string",
+            "defaultValue": "SELECT * FROM sys.tables"
+          }
+        },
+        "annotations": []
+      }
+    }
+  ]
+}
+
+

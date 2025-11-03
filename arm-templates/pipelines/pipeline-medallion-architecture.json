@@ -1,0 +1,423 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "factoryName": {
+      "type": "string",
+      "metadata": {
+        "description": "Name of the Data Factory"
+      }
+    }
+  },
+  "resources": [
+    {
+      "type": "Microsoft.DataFactory/factories/pipelines",
+      "apiVersion": "2018-06-01",
+      "name": "[concat(parameters('factoryName'), '/Medallion_BronzeIngestion')]",
+      "properties": {
+        "activities": [
+          {
+            "name": "IngestToBronze",
+            "type": "Copy",
+            "dependsOn": [],
+            "policy": {
+              "timeout": "1.00:00:00",
+              "retry": 1,
+              "retryIntervalInSeconds": 30,
+              "secureOutput": false,
+              "secureInput": false
+            },
+            "userProperties": [],
+            "typeProperties": {
+              "source": {
+                "type": "DelimitedTextSource",
+                "storeSettings": {
+                  "type": "AzureBlobStorageReadSettings",
+                  "recursive": false
+                },
+                "formatSettings": {
+                  "type": "DelimitedTextReadSettings",
+                  "skipLineCount": 1,
+                  "firstRowAsHeader": true
+                }
+              },
+              "sink": {
+                "type": "DelimitedTextSink",
+                "storeSettings": {
+                  "type": "AzureBlobFSWriteSettings",
+                  "copyBehavior": "PreserveHierarchy"
+                },
+                "formatSettings": {
+                  "type": "DelimitedTextWriteSettings",
+                  "firstRowAsHeader": true
+                }
+              },
+              "enableStaging": false,
+              "dataIntegrationUnits": 2,
+              "translator": {
+                "type": "TabularTranslator",
+                "typeConversion": true
+              }
+            },
+            "inputs": [
+              {
+                "referenceName": "AzureBlobStorage1",
+                "type": "DatasetReference",
+                "parameters": {
+                  "folderPath": "@pipeline().parameters.sourceFolder",
+                  "fileName": "@pipeline().parameters.sourceFile",
+                  "container": "@pipeline().parameters.sourceContainer"
+                }
+              }
+            ],
+            "outputs": [
+              {
+                "referenceName": "AzureDataLakeStorageGen2",
+                "type": "DatasetReference",
+                "parameters": {
+                  "folderPath": {
+                    "value": "@concat('bronze/', pipeline().parameters.tableName, '/', formatDateTime(pipeline().TriggerTime, 'yyyy'), '/', formatDateTime(pipeline().TriggerTime, 'MM'), '/', formatDateTime(pipeline().TriggerTime, 'dd'))",
+                    "type": "Expression"
+                  },
+                  "fileName": {
+                    "value": "@concat(pipeline().parameters.tableName, '_', pipeline().RunId, '.csv')",
+                    "type": "Expression"
+                  },
+                  "container": "bronze"
+                }
+              }
+            ]
+          }
+        ],
+        "parameters": {
+          "sourceContainer": {
+            "type": "string",
+            "defaultValue": "raw-data"
+          },
+          "sourceFolder": {
+            "type": "string",
+            "defaultValue": "input"
+          },
+          "sourceFile": {
+            "type": "string",
+            "defaultValue": "data.csv"
+          },
+          "tableName": {
+            "type": "string",
+            "defaultValue": "customers"
+          }
+        },
+        "annotations": [],
+        "description": "Ingest raw data into Bronze layer (Data Lake Storage Gen2 bronze container)"
+      }
+    },
+    {
+      "type": "Microsoft.DataFactory/factories/pipelines",
+      "apiVersion": "2018-06-01",
+      "name": "[concat(parameters('factoryName'), '/Medallion_SilverTransformation')]",
+      "properties": {
+        "activities": [
+          {
+            "name": "TransformBronzeToSilver",
+            "type": "Copy",
+            "dependsOn": [],
+            "policy": {
+              "timeout": "1.00:00:00",
+              "retry": 1,
+              "retryIntervalInSeconds": 30,
+              "secureOutput": false,
+              "secureInput": false
+            },
+            "userProperties": [],
+            "typeProperties": {
+              "source": {
+                "type": "DelimitedTextSource",
+                "storeSettings": {
+                  "type": "AzureBlobFSReadSettings",
+                  "recursive": true,
+                  "wildcardFileName": "*.csv"
+                },
+                "formatSettings": {
+                  "type": "DelimitedTextReadSettings",
+                  "firstRowAsHeader": true
+                }
+              },
+              "sink": {
+                "type": "ParquetSink",
+                "storeSettings": {
+                  "type": "AzureBlobFSWriteSettings"
+                },
+                "formatSettings": {
+                  "type": "ParquetWriteSettings"
+                }
+              },
+              "enableStaging": false,
+              "dataIntegrationUnits": 2,
+              "translator": {
+                "type": "TabularTranslator",
+                "typeConversion": true,
+                "mappings": []
+              }
+            },
+            "inputs": [
+              {
+                "referenceName": "AzureDataLakeStorageGen2",
+                "type": "DatasetReference",
+                "parameters": {
+                  "folderPath": {
+                    "value": "@concat('bronze/', pipeline().parameters.tableName, '/')",
+                    "type": "Expression"
+                  },
+                  "fileName": "",
+                  "container": "bronze"
+                }
+              }
+            ],
+            "outputs": [
+              {
+                "referenceName": "AzureDataLakeStorageGen2",
+                "type": "DatasetReference",
+                "parameters": {
+                  "folderPath": {
+                    "value": "@concat('silver/', pipeline().parameters.tableName, '/', formatDateTime(pipeline().TriggerTime, 'yyyy'), '/', formatDateTime(pipeline().TriggerTime, 'MM'), '/', formatDateTime(pipeline().TriggerTime, 'dd'))",
+                    "type": "Expression"
+                  },
+                  "fileName": "",
+                  "container": "silver"
+                }
+              }
+            ]
+          }
+        ],
+        "parameters": {
+          "tableName": {
+            "type": "string",
+            "defaultValue": "customers"
+          }
+        },
+        "annotations": [],
+        "description": "Transform Bronze data to Silver layer (cleaned, validated, structured)"
+      }
+    },
+    {
+      "type": "Microsoft.DataFactory/factories/pipelines",
+      "apiVersion": "2018-06-01",
+      "name": "[concat(parameters('factoryName'), '/Medallion_GoldAggregation')]",
+      "properties": {
+        "activities": [
+          {
+            "name": "AggregateSilverToGold",
+            "type": "Copy",
+            "dependsOn": [],
+            "policy": {
+              "timeout": "1.00:00:00",
+              "retry": 1,
+              "retryIntervalInSeconds": 30,
+              "secureOutput": false,
+              "secureInput": false
+            },
+            "userProperties": [],
+            "typeProperties": {
+              "source": {
+                "type": "ParquetSource",
+                "storeSettings": {
+                  "type": "AzureBlobFSReadSettings",
+                  "recursive": true,
+                  "wildcardFileName": "*.parquet"
+                },
+                "formatSettings": {
+                  "type": "ParquetReadSettings"
+                }
+              },
+              "sink": {
+                "type": "ParquetSink",
+                "storeSettings": {
+                  "type": "AzureBlobFSWriteSettings"
+                },
+                "formatSettings": {
+                  "type": "ParquetWriteSettings"
+                }
+              },
+              "enableStaging": false,
+              "dataIntegrationUnits": 2,
+              "translator": {
+                "type": "TabularTranslator"
+              }
+            },
+            "inputs": [
+              {
+                "referenceName": "AzureDataLakeStorageGen2",
+                "type": "DatasetReference",
+                "parameters": {
+                  "folderPath": {
+                    "value": "@concat('silver/', pipeline().parameters.tableName, '/')",
+                    "type": "Expression"
+                  },
+                  "fileName": "",
+                  "container": "silver"
+                }
+              }
+            ],
+            "outputs": [
+              {
+                "referenceName": "AzureDataLakeStorageGen2",
+                "type": "DatasetReference",
+                "parameters": {
+                  "folderPath": {
+                    "value": "@concat('gold/', pipeline().parameters.tableName, '/', formatDateTime(pipeline().TriggerTime, 'yyyy'), '/', formatDateTime(pipeline().TriggerTime, 'MM'), '/', formatDateTime(pipeline().TriggerTime, 'dd'))",
+                    "type": "Expression"
+                  },
+                  "fileName": "",
+                  "container": "gold"
+                }
+              }
+            ]
+          }
+        },
+        "parameters": {
+          "tableName": {
+            "type": "string",
+            "defaultValue": "customers"
+          }
+        },
+        "annotations": [],
+        "description": "Aggregate Silver data to Gold layer (business-ready, aggregated data)"
+      }
+    },
+    {
+      "type": "Microsoft.DataFactory/factories/pipelines",
+      "apiVersion": "2018-06-01",
+      "name": "[concat(parameters('factoryName'), '/Medallion_CompleteETL')]",
+      "properties": {
+        "activities": [
+          {
+            "name": "IngestToBronze",
+            "type": "ExecutePipeline",
+            "dependsOn": [],
+            "policy": {
+              "timeout": "7.00:00:00",
+              "retry": 0,
+              "retryIntervalInSeconds": 30,
+              "secureOutput": false,
+              "secureInput": false
+            },
+            "userProperties": [],
+            "typeProperties": {
+              "pipeline": {
+                "referenceName": "Medallion_BronzeIngestion",
+                "type": "PipelineReference"
+              },
+              "waitOnCompletion": true,
+              "parameters": {
+                "sourceContainer": {
+                  "value": "@pipeline().parameters.sourceContainer",
+                  "type": "Expression"
+                },
+                "sourceFolder": {
+                  "value": "@pipeline().parameters.sourceFolder",
+                  "type": "Expression"
+                },
+                "sourceFile": {
+                  "value": "@pipeline().parameters.sourceFile",
+                  "type": "Expression"
+                },
+                "tableName": {
+                  "value": "@pipeline().parameters.tableName",
+                  "type": "Expression"
+                }
+              }
+            }
+          },
+          {
+            "name": "TransformToSilver",
+            "type": "ExecutePipeline",
+            "dependsOn": [
+              {
+                "activity": "IngestToBronze",
+                "dependencyConditions": [
+                  "Succeeded"
+                ]
+              }
+            ],
+            "policy": {
+              "timeout": "7.00:00:00",
+              "retry": 0,
+              "retryIntervalInSeconds": 30,
+              "secureOutput": false,
+              "secureInput": false
+            },
+            "userProperties": [],
+            "typeProperties": {
+              "pipeline": {
+                "referenceName": "Medallion_SilverTransformation",
+                "type": "PipelineReference"
+              },
+              "waitOnCompletion": true,
+              "parameters": {
+                "tableName": {
+                  "value": "@pipeline().parameters.tableName",
+                  "type": "Expression"
+                }
+              }
+            }
+          },
+          {
+            "name": "AggregateToGold",
+            "type": "ExecutePipeline",
+            "dependsOn": [
+              {
+                "activity": "TransformToSilver",
+                "dependencyConditions": [
+                  "Succeeded"
+                ]
+              }
+            ],
+            "policy": {
+              "timeout": "7.00:00:00",
+              "retry": 0,
+              "retryIntervalInSeconds": 30,
+              "secureOutput": false,
+              "secureInput": false
+            },
+            "userProperties": [],
+            "typeProperties": {
+              "pipeline": {
+                "referenceName": "Medallion_GoldAggregation",
+                "type": "PipelineReference"
+              },
+              "waitOnCompletion": true,
+              "parameters": {
+                "tableName": {
+                  "value": "@pipeline().parameters.tableName",
+                  "type": "Expression"
+                }
+              }
+            }
+          }
+        ],
+        "parameters": {
+          "sourceContainer": {
+            "type": "string",
+            "defaultValue": "raw-data"
+          },
+          "sourceFolder": {
+            "type": "string",
+            "defaultValue": "input"
+          },
+          "sourceFile": {
+            "type": "string",
+            "defaultValue": "data.csv"
+          },
+          "tableName": {
+            "type": "string",
+            "defaultValue": "customers"
+          }
+        },
+        "annotations": [],
+        "description": "Complete ETL pipeline: Bronze -> Silver -> Gold (Medallion Architecture)"
+      }
+    }
+  ]
+}
+
+

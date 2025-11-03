@@ -1,0 +1,1720 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "factoryName": {
+      "type": "string",
+      "metadata": {
+        "description": "Name of the Azure Data Factory"
+      }
+    },
+    "location": {
+      "type": "string",
+      "defaultValue": "[resourceGroup().location]",
+      "metadata": {
+        "description": "Location for the Data Factory"
+      }
+    },
+    "azureSqlServerName": {
+      "type": "string",
+      "metadata": {
+        "description": "Azure SQL Server name"
+      }
+    },
+    "azureSqlDatabaseName": {
+      "type": "string",
+      "metadata": {
+        "description": "Azure SQL Database name"
+      }
+    },
+    "storageAccountName": {
+      "type": "string",
+      "metadata": {
+        "description": "Azure Storage Account name"
+      }
+    },
+    "dataLakeStorageAccountName": {
+      "type": "string",
+      "metadata": {
+        "description": "Azure Data Lake Storage account name"
+      }
+    },
+    "blobStorageAccountName": {
+      "type": "string",
+      "metadata": {
+        "description": "Blob Storage account name"
+      }
+    },
+    "sqlServerOnPremisesConnectionString": {
+      "type": "securestring",
+      "metadata": {
+        "description": "On-premises SQL Server connection string"
+      }
+    },
+    "oracleConnectionString": {
+      "type": "securestring",
+      "metadata": {
+        "description": "Oracle connection string"
+      }
+    },
+    "mySqlConnectionString": {
+      "type": "securestring",
+      "metadata": {
+        "description": "MySQL connection string"
+      }
+    },
+    "postgreSqlConnectionString": {
+      "type": "securestring",
+      "metadata": {
+        "description": "PostgreSQL connection string"
+      }
+    },
+    "cosmosDbConnectionString": {
+      "type": "securestring",
+      "metadata": {
+        "description": "Cosmos DB connection string"
+      }
+    },
+    "servicePrincipalId": {
+      "type": "string",
+      "metadata": {
+        "description": "Service Principal ID for authentication"
+      }
+    },
+    "servicePrincipalKey": {
+      "type": "securestring",
+      "metadata": {
+        "description": "Service Principal Key"
+      }
+    },
+    "tenantId": {
+      "type": "string",
+      "metadata": {
+        "description": "Tenant ID"
+      }
+    },
+    "integrationRuntimeName": {
+      "type": "string",
+      "defaultValue": "AutoResolveIntegrationRuntime",
+      "metadata": {
+        "description": "Integration Runtime name"
+      }
+    }
+  },
+  "variables": {
+    "factoryId": "[concat('Microsoft.DataFactory/factories/', parameters('factoryName'))]"
+  },
+  "resources": [
+    {
+      "name": "[parameters('factoryName')]",
+      "type": "Microsoft.DataFactory/factories",
+      "apiVersion": "2018-06-01",
+      "location": "[parameters('location')]",
+      "identity": {
+        "type": "SystemAssigned"
+      },
+      "properties": {}
+    },
+    {
+      "type": "Microsoft.DataFactory/factories/integrationRuntimes",
+      "apiVersion": "2018-06-01",
+      "name": "[concat(parameters('factoryName'), '/', parameters('integrationRuntimeName'))]",
+      "dependsOn": [
+        "[resourceId('Microsoft.DataFactory/factories', parameters('factoryName'))]"
+      ],
+      "properties": {
+        "type": "Managed",
+        "typeProperties": {
+          "computeProperties": {
+            "location": "AutoResolve"
+          }
+        }
+      }
+    },
+    {
+      "type": "Microsoft.DataFactory/factories/linkedServices",
+      "apiVersion": "2018-06-01",
+      "name": "[concat(parameters('factoryName'), '/AzureSqlDatabase1')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.DataFactory/factories', parameters('factoryName'))]"
+      ],
+      "properties": {
+        "type": "AzureSqlDatabase",
+        "typeProperties": {
+          "connectionString": {
+            "type": "AzureKeyVaultSecret",
+            "store": {
+              "referenceName": "AzureKeyVault1",
+              "type": "LinkedServiceReference"
+            },
+            "secretName": "AzureSqlConnectionString"
+          }
+        },
+        "connectVia": {
+          "referenceName": "[parameters('integrationRuntimeName')]",
+          "type": "IntegrationRuntimeReference"
+        }
+      }
+    },
+    {
+      "type": "Microsoft.DataFactory/factories/linkedServices",
+      "apiVersion": "2018-06-01",
+      "name": "[concat(parameters('factoryName'), '/AzureBlobStorage1')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.DataFactory/factories', parameters('factoryName'))]"
+      ],
+      "properties": {
+        "type": "AzureBlobStorage",
+        "typeProperties": {
+          "connectionString": "[concat('DefaultEndpointsProtocol=https;AccountName=', parameters('storageAccountName'), ';EndpointSuffix=', environment().suffixes.storage, ';AccountKey=', parameters('storageAccountKey'))]"
+        },
+        "connectVia": {
+          "referenceName": "[parameters('integrationRuntimeName')]",
+          "type": "IntegrationRuntimeReference"
+        }
+      }
+    },
+    {
+      "type": "Microsoft.DataFactory/factories/linkedServices",
+      "apiVersion": "2018-06-01",
+      "name": "[concat(parameters('factoryName'), '/AzureDataLakeStorageGen2')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.DataFactory/factories', parameters('factoryName'))]"
+      ],
+      "properties": {
+        "type": "AzureBlobFS",
+        "typeProperties": {
+          "url": "[concat('https://', parameters('dataLakeStorageAccountName'), '.dfs.core.windows.net')]",
+          "accountKey": {
+            "type": "AzureKeyVaultSecret",
+            "store": {
+              "referenceName": "AzureKeyVault1",
+              "type": "LinkedServiceReference"
+            },
+            "secretName": "DataLakeStorageKey"
+          }
+        },
+        "connectVia": {
+          "referenceName": "[parameters('integrationRuntimeName')]",
+          "type": "IntegrationRuntimeReference"
+        }
+      }
+    },
+    {
+      "type": "Microsoft.DataFactory/factories/linkedServices",
+      "apiVersion": "2018-06-01",
+      "name": "[concat(parameters('factoryName'), '/AzureKeyVault1')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.DataFactory/factories', parameters('factoryName'))]"
+      ],
+      "properties": {
+        "type": "AzureKeyVault",
+        "typeProperties": {
+          "baseUrl": "[concat('https://', parameters('keyVaultName'), '.vault.azure.net/')]"
+        }
+      }
+    },
+    {
+      "type": "Microsoft.DataFactory/factories/linkedServices",
+      "apiVersion": "2018-06-01",
+      "name": "[concat(parameters('factoryName'), '/AzureSqlDW1')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.DataFactory/factories', parameters('factoryName'))]"
+      ],
+      "properties": {
+        "type": "AzureSqlDW",
+        "typeProperties": {
+          "connectionString": {
+            "type": "AzureKeyVaultSecret",
+            "store": {
+              "referenceName": "AzureKeyVault1",
+              "type": "LinkedServiceReference"
+            },
+            "secretName": "AzureSqlDWConnectionString"
+          }
+        },
+        "connectVia": {
+          "referenceName": "[parameters('integrationRuntimeName')]",
+          "type": "IntegrationRuntimeReference"
+        }
+      }
+    },
+    {
+      "type": "Microsoft.DataFactory/factories/linkedServices",
+      "apiVersion": "2018-06-01",
+      "name": "[concat(parameters('factoryName'), '/CosmosDb1')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.DataFactory/factories', parameters('factoryName'))]"
+      ],
+      "properties": {
+        "type": "CosmosDb",
+        "typeProperties": {
+          "connectionString": {
+            "type": "AzureKeyVaultSecret",
+            "store": {
+              "referenceName": "AzureKeyVault1",
+              "type": "LinkedServiceReference"
+            },
+            "secretName": "CosmosDbConnectionString"
+          }
+        },
+        "connectVia": {
+          "referenceName": "[parameters('integrationRuntimeName')]",
+          "type": "IntegrationRuntimeReference"
+        }
+      }
+    },
+    {
+      "type": "Microsoft.DataFactory/factories/linkedServices",
+      "apiVersion": "2018-06-01",
+      "name": "[concat(parameters('factoryName'), '/AzureDatabricks1')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.DataFactory/factories', parameters('factoryName'))]"
+      ],
+      "properties": {
+        "type": "AzureDatabricks",
+        "typeProperties": {
+          "domain": "[parameters('databricksWorkspaceUrl')]",
+          "authentication": "MSI",
+          "workspaceResourceId": "[parameters('databricksWorkspaceResourceId')]",
+          "existingClusterId": "[parameters('databricksClusterId')]"
+        },
+        "connectVia": {
+          "referenceName": "[parameters('integrationRuntimeName')]",
+          "type": "IntegrationRuntimeReference"
+        }
+      }
+    },
+    {
+      "type": "Microsoft.DataFactory/factories/linkedServices",
+      "apiVersion": "2018-06-01",
+      "name": "[concat(parameters('factoryName'), '/HttpServer1')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.DataFactory/factories', parameters('factoryName'))]"
+      ],
+      "properties": {
+        "type": "HttpServer",
+        "typeProperties": {
+          "url": "[parameters('httpServerUrl')]",
+          "enableServerCertificateValidation": true,
+          "authenticationType": "Basic",
+          "userName": "[parameters('httpUserName')]",
+          "password": {
+            "type": "AzureKeyVaultSecret",
+            "store": {
+              "referenceName": "AzureKeyVault1",
+              "type": "LinkedServiceReference"
+            },
+            "secretName": "HttpServerPassword"
+          }
+        },
+        "connectVia": {
+          "referenceName": "[parameters('integrationRuntimeName')]",
+          "type": "IntegrationRuntimeReference"
+        }
+      }
+    },
+    {
+      "type": "Microsoft.DataFactory/factories/linkedServices",
+      "apiVersion": "2018-06-01",
+      "name": "[concat(parameters('factoryName'), '/RestService1')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.DataFactory/factories', parameters('factoryName'))]"
+      ],
+      "properties": {
+        "type": "RestService",
+        "typeProperties": {
+          "url": "[parameters('restServiceUrl')]",
+          "enableServerCertificateValidation": true,
+          "authenticationType": "AadServicePrincipal",
+          "servicePrincipalId": "[parameters('servicePrincipalId')]",
+          "servicePrincipalKey": {
+            "type": "AzureKeyVaultSecret",
+            "store": {
+              "referenceName": "AzureKeyVault1",
+              "type": "LinkedServiceReference"
+            },
+            "secretName": "ServicePrincipalKey"
+          },
+          "tenant": "[parameters('tenantId')]",
+          "aadResourceId": "[parameters('restServiceAadResourceId')]"
+        },
+        "connectVia": {
+          "referenceName": "[parameters('integrationRuntimeName')]",
+          "type": "IntegrationRuntimeReference"
+        }
+      }
+    },
+    {
+      "type": "Microsoft.DataFactory/factories/linkedServices",
+      "apiVersion": "2018-06-01",
+      "name": "[concat(parameters('factoryName'), '/AzureDataLakeStorageGen1')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.DataFactory/factories', parameters('factoryName'))]"
+      ],
+      "properties": {
+        "type": "AzureDataLakeStore",
+        "typeProperties": {
+          "dataLakeStoreUri": "[concat('adl://', parameters('adlsAccountName'), '.azuredatalakestore.net')]",
+          "servicePrincipalId": "[parameters('servicePrincipalId')]",
+          "servicePrincipalKey": {
+            "type": "AzureKeyVaultSecret",
+            "store": {
+              "referenceName": "AzureKeyVault1",
+              "type": "LinkedServiceReference"
+            },
+            "secretName": "ServicePrincipalKey"
+          },
+          "tenant": "[parameters('tenantId')]",
+          "subscriptionId": "[subscription().subscriptionId]",
+          "resourceGroupName": "[resourceGroup().name]"
+        },
+        "connectVia": {
+          "referenceName": "[parameters('integrationRuntimeName')]",
+          "type": "IntegrationRuntimeReference"
+        }
+      }
+    },
+    {
+      "type": "Microsoft.DataFactory/factories/linkedServices",
+      "apiVersion": "2018-06-01",
+      "name": "[concat(parameters('factoryName'), '/AmazonS3')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.DataFactory/factories', parameters('factoryName'))]"
+      ],
+      "properties": {
+        "type": "AmazonS3",
+        "typeProperties": {
+          "accessKeyId": "[parameters('amazonS3AccessKeyId')]",
+          "secretAccessKey": {
+            "type": "AzureKeyVaultSecret",
+            "store": {
+              "referenceName": "AzureKeyVault1",
+              "type": "LinkedServiceReference"
+            },
+            "secretName": "AmazonS3SecretKey"
+          },
+          "serviceUrl": "[parameters('amazonS3ServiceUrl')]"
+        },
+        "connectVia": {
+          "referenceName": "[parameters('integrationRuntimeName')]",
+          "type": "IntegrationRuntimeReference"
+        }
+      }
+    },
+    {
+      "type": "Microsoft.DataFactory/factories/linkedServices",
+      "apiVersion": "2018-06-01",
+      "name": "[concat(parameters('factoryName'), '/AzureFileStorage1')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.DataFactory/factories', parameters('factoryName'))]"
+      ],
+      "properties": {
+        "type": "AzureFileStorage",
+        "typeProperties": {
+          "host": "[concat(parameters('storageAccountName'), '.file.core.windows.net')]",
+          "userId": "[parameters('fileStorageUserId')]",
+          "password": {
+            "type": "AzureKeyVaultSecret",
+            "store": {
+              "referenceName": "AzureKeyVault1",
+              "type": "LinkedServiceReference"
+            },
+            "secretName": "FileStoragePassword"
+          }
+        },
+        "connectVia": {
+          "referenceName": "[parameters('integrationRuntimeName')]",
+          "type": "IntegrationRuntimeReference"
+        }
+      }
+    },
+    {
+      "type": "Microsoft.DataFactory/factories/linkedServices",
+      "apiVersion": "2018-06-01",
+      "name": "[concat(parameters('factoryName'), '/AzureTableStorage1')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.DataFactory/factories', parameters('factoryName'))]"
+      ],
+      "properties": {
+        "type": "AzureTableStorage",
+        "typeProperties": {
+          "connectionString": "[concat('DefaultEndpointsProtocol=https;AccountName=', parameters('storageAccountName'), ';EndpointSuffix=', environment().suffixes.storage, ';AccountKey=', parameters('storageAccountKey'))]"
+        },
+        "connectVia": {
+          "referenceName": "[parameters('integrationRuntimeName')]",
+          "type": "IntegrationRuntimeReference"
+        }
+      }
+    },
+    {
+      "type": "Microsoft.DataFactory/factories/linkedServices",
+      "apiVersion": "2018-06-01",
+      "name": "[concat(parameters('factoryName'), '/AzureQueueStorage1')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.DataFactory/factories', parameters('factoryName'))]"
+      ],
+      "properties": {
+        "type": "AzureQueue",
+        "typeProperties": {
+          "connectionString": "[concat('DefaultEndpointsProtocol=https;AccountName=', parameters('storageAccountName'), ';EndpointSuffix=', environment().suffixes.storage, ';AccountKey=', parameters('storageAccountKey'))]"
+        },
+        "connectVia": {
+          "referenceName": "[parameters('integrationRuntimeName')]",
+          "type": "IntegrationRuntimeReference"
+        }
+      }
+    },
+    {
+      "type": "Microsoft.DataFactory/factories/linkedServices",
+      "apiVersion": "2018-06-01",
+      "name": "[concat(parameters('factoryName'), '/FileServer1')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.DataFactory/factories', parameters('factoryName'))]"
+      ],
+      "properties": {
+        "type": "FileServer",
+        "typeProperties": {
+          "host": "[parameters('onPremisesFileServerHost')]",
+          "userId": "[parameters('onPremisesFileServerUserId')]",
+          "password": {
+            "type": "AzureKeyVaultSecret",
+            "store": {
+              "referenceName": "AzureKeyVault1",
+              "type": "LinkedServiceReference"
+            },
+            "secretName": "FileServerPassword"
+          }
+        },
+        "connectVia": {
+          "referenceName": "[parameters('selfHostedIntegrationRuntimeName')]",
+          "type": "IntegrationRuntimeReference"
+        }
+      }
+    },
+    {
+      "type": "Microsoft.DataFactory/factories/linkedServices",
+      "apiVersion": "2018-06-01",
+      "name": "[concat(parameters('factoryName'), '/FtpServer1')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.DataFactory/factories', parameters('factoryName'))]"
+      ],
+      "properties": {
+        "type": "FtpServer",
+        "typeProperties": {
+          "host": "[parameters('ftpServerHost')]",
+          "port": 21,
+          "enableSsl": false,
+          "enableServerCertificateValidation": true,
+          "authenticationType": "Basic",
+          "userName": "[parameters('ftpUserName')]",
+          "password": {
+            "type": "AzureKeyVaultSecret",
+            "store": {
+              "referenceName": "AzureKeyVault1",
+              "type": "LinkedServiceReference"
+            },
+            "secretName": "FtpPassword"
+          }
+        },
+        "connectVia": {
+          "referenceName": "[parameters('selfHostedIntegrationRuntimeName')]",
+          "type": "IntegrationRuntimeReference"
+        }
+      }
+    },
+    {
+      "type": "Microsoft.DataFactory/factories/linkedServices",
+      "apiVersion": "2018-06-01",
+      "name": "[concat(parameters('factoryName'), '/SftpServer1')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.DataFactory/factories', parameters('factoryName'))]"
+      ],
+      "properties": {
+        "type": "Sftp",
+        "typeProperties": {
+          "host": "[parameters('sftpServerHost')]",
+          "port": 22,
+          "skipHostKeyValidation": false,
+          "authenticationType": "Basic",
+          "userName": "[parameters('sftpUserName')]",
+          "password": {
+            "type": "AzureKeyVaultSecret",
+            "store": {
+              "referenceName": "AzureKeyVault1",
+              "type": "LinkedServiceReference"
+            },
+            "secretName": "SftpPassword"
+          }
+        },
+        "connectVia": {
+          "referenceName": "[parameters('selfHostedIntegrationRuntimeName')]",
+          "type": "IntegrationRuntimeReference"
+        }
+      }
+    },
+    {
+      "type": "Microsoft.DataFactory/factories/linkedServices",
+      "apiVersion": "2018-06-01",
+      "name": "[concat(parameters('factoryName'), '/AzureFunction1')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.DataFactory/factories', parameters('factoryName'))]"
+      ],
+      "properties": {
+        "type": "AzureFunction",
+        "typeProperties": {
+          "functionAppUrl": "[parameters('azureFunctionUrl')]",
+          "functionKey": {
+            "type": "AzureKeyVaultSecret",
+            "store": {
+              "referenceName": "AzureKeyVault1",
+              "type": "LinkedServiceReference"
+            },
+            "secretName": "AzureFunctionKey"
+          }
+        }
+      }
+    },
+    {
+      "type": "Microsoft.DataFactory/factories/linkedServices",
+      "apiVersion": "2018-06-01",
+      "name": "[concat(parameters('factoryName'), '/AzureML1')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.DataFactory/factories', parameters('factoryName'))]"
+      ],
+      "properties": {
+        "type": "AzureML",
+        "typeProperties": {
+          "mlEndpoint": "[parameters('azureMLEndpoint')]",
+          "apiKey": {
+            "type": "AzureKeyVaultSecret",
+            "store": {
+              "referenceName": "AzureKeyVault1",
+              "type": "LinkedServiceReference"
+            },
+            "secretName": "AzureMLApiKey"
+          }
+        }
+      }
+    },
+    {
+      "type": "Microsoft.DataFactory/factories/linkedServices",
+      "apiVersion": "2018-06-01",
+      "name": "[concat(parameters('factoryName'), '/AzureMLService1')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.DataFactory/factories', parameters('factoryName'))]"
+      ],
+      "properties": {
+        "type": "AzureMLService",
+        "typeProperties": {
+          "subscriptionId": "[subscription().subscriptionId]",
+          "resourceGroupName": "[resourceGroup().name]",
+          "mlWorkspaceName": "[parameters('mlWorkspaceName')]",
+          "servicePrincipalId": "[parameters('servicePrincipalId')]",
+          "servicePrincipalKey": {
+            "type": "AzureKeyVaultSecret",
+            "store": {
+              "referenceName": "AzureKeyVault1",
+              "type": "LinkedServiceReference"
+            },
+            "secretName": "ServicePrincipalKey"
+          },
+          "tenant": "[parameters('tenantId')]"
+        }
+      }
+    },
+    {
+      "type": "Microsoft.DataFactory/factories/linkedServices",
+      "apiVersion": "2018-06-01",
+      "name": "[concat(parameters('factoryName'), '/AzureSearch1')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.DataFactory/factories', parameters('factoryName'))]"
+      ],
+      "properties": {
+        "type": "AzureSearch",
+        "typeProperties": {
+          "url": "[concat('https://', parameters('azureSearchServiceName'), '.search.windows.net')]",
+          "key": {
+            "type": "AzureKeyVaultSecret",
+            "store": {
+              "referenceName": "AzureKeyVault1",
+              "type": "LinkedServiceReference"
+            },
+            "secretName": "AzureSearchKey"
+          }
+        }
+      }
+    },
+    {
+      "type": "Microsoft.DataFactory/factories/linkedServices",
+      "apiVersion": "2018-06-01",
+      "name": "[concat(parameters('factoryName'), '/AzureSqlMI1')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.DataFactory/factories', parameters('factoryName'))]"
+      ],
+      "properties": {
+        "type": "AzureSqlMI",
+        "typeProperties": {
+          "connectionString": {
+            "type": "AzureKeyVaultSecret",
+            "store": {
+              "referenceName": "AzureKeyVault1",
+              "type": "LinkedServiceReference"
+            },
+            "secretName": "AzureSqlMIConnectionString"
+          }
+        },
+        "connectVia": {
+          "referenceName": "[parameters('integrationRuntimeName')]",
+          "type": "IntegrationRuntimeReference"
+        }
+      }
+    },
+    {
+      "type": "Microsoft.DataFactory/factories/linkedServices",
+      "apiVersion": "2018-06-01",
+      "name": "[concat(parameters('factoryName'), '/AzurePostgreSql1')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.DataFactory/factories', parameters('factoryName'))]"
+      ],
+      "properties": {
+        "type": "AzurePostgreSql",
+        "typeProperties": {
+          "connectionString": {
+            "type": "AzureKeyVaultSecret",
+            "store": {
+              "referenceName": "AzureKeyVault1",
+              "type": "LinkedServiceReference"
+            },
+            "secretName": "AzurePostgreSqlConnectionString"
+          }
+        },
+        "connectVia": {
+          "referenceName": "[parameters('integrationRuntimeName')]",
+          "type": "IntegrationRuntimeReference"
+        }
+      }
+    },
+    {
+      "type": "Microsoft.DataFactory/factories/linkedServices",
+      "apiVersion": "2018-06-01",
+      "name": "[concat(parameters('factoryName'), '/AzureMySql1')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.DataFactory/factories', parameters('factoryName'))]"
+      ],
+      "properties": {
+        "type": "AzureMySql",
+        "typeProperties": {
+          "connectionString": {
+            "type": "AzureKeyVaultSecret",
+            "store": {
+              "referenceName": "AzureKeyVault1",
+              "type": "LinkedServiceReference"
+            },
+            "secretName": "AzureMySqlConnectionString"
+          }
+        },
+        "connectVia": {
+          "referenceName": "[parameters('integrationRuntimeName')]",
+          "type": "IntegrationRuntimeReference"
+        }
+      }
+    },
+    {
+      "type": "Microsoft.DataFactory/factories/linkedServices",
+      "apiVersion": "2018-06-01",
+      "name": "[concat(parameters('factoryName'), '/AzureBatch1')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.DataFactory/factories', parameters('factoryName'))]"
+      ],
+      "properties": {
+        "type": "AzureBatch",
+        "typeProperties": {
+          "accountName": "[parameters('azureBatchAccountName')]",
+          "accessKey": {
+            "type": "AzureKeyVaultSecret",
+            "store": {
+              "referenceName": "AzureKeyVault1",
+              "type": "LinkedServiceReference"
+            },
+            "secretName": "AzureBatchAccessKey"
+          },
+          "batchUri": "[concat('https://', parameters('azureBatchAccountName'), '.', environment().suffixes.batch)]",
+          "poolName": "[parameters('azureBatchPoolName')]",
+          "linkedServiceName": {
+            "referenceName": "AzureStorage1",
+            "type": "LinkedServiceReference"
+          }
+        }
+      }
+    },
+    {
+      "type": "Microsoft.DataFactory/factories/linkedServices",
+      "apiVersion": "2018-06-01",
+      "name": "[concat(parameters('factoryName'), '/AzureDataExplorer1')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.DataFactory/factories', parameters('factoryName'))]"
+      ],
+      "properties": {
+        "type": "AzureDataExplorer",
+        "typeProperties": {
+          "endpoint": "[concat('https://', parameters('adxClusterName'), '.', parameters('adxRegion'), '.kusto.windows.net')]",
+          "servicePrincipalId": "[parameters('servicePrincipalId')]",
+          "servicePrincipalKey": {
+            "type": "AzureKeyVaultSecret",
+            "store": {
+              "referenceName": "AzureKeyVault1",
+              "type": "LinkedServiceReference"
+            },
+            "secretName": "ServicePrincipalKey"
+          },
+          "database": "[parameters('adxDatabaseName')]",
+          "tenant": "[parameters('tenantId')]"
+        }
+      }
+    },
+    {
+      "type": "Microsoft.DataFactory/factories/linkedServices",
+      "apiVersion": "2018-06-01",
+      "name": "[concat(parameters('factoryName'), '/AmazonRedshift1')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.DataFactory/factories', parameters('factoryName'))]"
+      ],
+      "properties": {
+        "type": "AmazonRedshift",
+        "typeProperties": {
+          "server": "[parameters('amazonRedshiftServer')]",
+          "port": 5439,
+          "database": "[parameters('amazonRedshiftDatabase')]",
+          "username": "[parameters('amazonRedshiftUsername')]",
+          "password": {
+            "type": "AzureKeyVaultSecret",
+            "store": {
+              "referenceName": "AzureKeyVault1",
+              "type": "LinkedServiceReference"
+            },
+            "secretName": "AmazonRedshiftPassword"
+          }
+        },
+        "connectVia": {
+          "referenceName": "[parameters('integrationRuntimeName')]",
+          "type": "IntegrationRuntimeReference"
+        }
+      }
+    },
+    {
+      "type": "Microsoft.DataFactory/factories/linkedServices",
+      "apiVersion": "2018-06-01",
+      "name": "[concat(parameters('factoryName'), '/Dynamics1')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.DataFactory/factories', parameters('factoryName'))]"
+      ],
+      "properties": {
+        "type": "Dynamics",
+        "typeProperties": {
+          "deploymentType": "Online",
+          "serviceUri": "[parameters('dynamicsServiceUri')]",
+          "authenticationType": "AadServicePrincipal",
+          "servicePrincipalId": "[parameters('servicePrincipalId')]",
+          "servicePrincipalKey": {
+            "type": "AzureKeyVaultSecret",
+            "store": {
+              "referenceName": "AzureKeyVault1",
+              "type": "LinkedServiceReference"
+            },
+            "secretName": "ServicePrincipalKey"
+          },
+          "tenant": "[parameters('tenantId')]"
+        }
+      }
+    },
+    {
+      "type": "Microsoft.DataFactory/factories/linkedServices",
+      "apiVersion": "2018-06-01",
+      "name": "[concat(parameters('factoryName'), '/DynamicsCrm1')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.DataFactory/factories', parameters('factoryName'))]"
+      ],
+      "properties": {
+        "type": "DynamicsCrm",
+        "typeProperties": {
+          "deploymentType": "Online",
+          "serviceUri": "[parameters('dynamicsCrmServiceUri')]",
+          "authenticationType": "AadServicePrincipal",
+          "servicePrincipalId": "[parameters('servicePrincipalId')]",
+          "servicePrincipalKey": {
+            "type": "AzureKeyVaultSecret",
+            "store": {
+              "referenceName": "AzureKeyVault1",
+              "type": "LinkedServiceReference"
+            },
+            "secretName": "ServicePrincipalKey"
+          },
+          "tenant": "[parameters('tenantId')]"
+        }
+      }
+    },
+    {
+      "type": "Microsoft.DataFactory/factories/linkedServices",
+      "apiVersion": "2018-06-01",
+      "name": "[concat(parameters('factoryName'), '/Salesforce1')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.DataFactory/factories', parameters('factoryName'))]"
+      ],
+      "properties": {
+        "type": "Salesforce",
+        "typeProperties": {
+          "environmentUrl": "[parameters('salesforceEnvironmentUrl')]",
+          "username": "[parameters('salesforceUsername')]",
+          "password": {
+            "type": "AzureKeyVaultSecret",
+            "store": {
+              "referenceName": "AzureKeyVault1",
+              "type": "LinkedServiceReference"
+            },
+            "secretName": "SalesforcePassword"
+          },
+          "securityToken": {
+            "type": "AzureKeyVaultSecret",
+            "store": {
+              "referenceName": "AzureKeyVault1",
+              "type": "LinkedServiceReference"
+            },
+            "secretName": "SalesforceSecurityToken"
+          }
+        },
+        "connectVia": {
+          "referenceName": "[parameters('integrationRuntimeName')]",
+          "type": "IntegrationRuntimeReference"
+        }
+      }
+    },
+    {
+      "type": "Microsoft.DataFactory/factories/linkedServices",
+      "apiVersion": "2018-06-01",
+      "name": "[concat(parameters('factoryName'), '/SapEcc1')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.DataFactory/factories', parameters('factoryName'))]"
+      ],
+      "properties": {
+        "type": "SapEcc",
+        "typeProperties": {
+          "url": "[parameters('sapEccUrl')]",
+          "username": "[parameters('sapEccUsername')]",
+          "password": {
+            "type": "AzureKeyVaultSecret",
+            "store": {
+              "referenceName": "AzureKeyVault1",
+              "type": "LinkedServiceReference"
+            },
+            "secretName": "SapEccPassword"
+          }
+        },
+        "connectVia": {
+          "referenceName": "[parameters('selfHostedIntegrationRuntimeName')]",
+          "type": "IntegrationRuntimeReference"
+        }
+      }
+    },
+    {
+      "type": "Microsoft.DataFactory/factories/linkedServices",
+      "apiVersion": "2018-06-01",
+      "name": "[concat(parameters('factoryName'), '/SapOpenHub1')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.DataFactory/factories', parameters('factoryName'))]"
+      ],
+      "properties": {
+        "type": "SapOpenHub",
+        "typeProperties": {
+          "server": "[parameters('sapOpenHubServer')]",
+          "systemNumber": "[parameters('sapOpenHubSystemNumber')]",
+          "clientId": "[parameters('sapOpenHubClientId')]",
+          "language": "EN",
+          "userName": "[parameters('sapOpenHubUsername')]",
+          "password": {
+            "type": "AzureKeyVaultSecret",
+            "store": {
+              "referenceName": "AzureKeyVault1",
+              "type": "LinkedServiceReference"
+            },
+            "secretName": "SapOpenHubPassword"
+          },
+          "messageServer": "[parameters('sapOpenHubMessageServer')]",
+          "messageServerService": "[parameters('sapOpenHubMessageServerService')]",
+          "logonGroup": "[parameters('sapOpenHubLogonGroup')]"
+        },
+        "connectVia": {
+          "referenceName": "[parameters('selfHostedIntegrationRuntimeName')]",
+          "type": "IntegrationRuntimeReference"
+        }
+      }
+    },
+    {
+      "type": "Microsoft.DataFactory/factories/linkedServices",
+      "apiVersion": "2018-06-01",
+      "name": "[concat(parameters('factoryName'), '/SapTable1')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.DataFactory/factories', parameters('factoryName'))]"
+      ],
+      "properties": {
+        "type": "SapTable",
+        "typeProperties": {
+          "server": "[parameters('sapTableServer')]",
+          "systemNumber": "[parameters('sapTableSystemNumber')]",
+          "clientId": "[parameters('sapTableClientId')]",
+          "language": "EN",
+          "userName": "[parameters('sapTableUsername')]",
+          "password": {
+            "type": "AzureKeyVaultSecret",
+            "store": {
+              "referenceName": "AzureKeyVault1",
+              "type": "LinkedServiceReference"
+            },
+            "secretName": "SapTablePassword"
+          }
+        },
+        "connectVia": {
+          "referenceName": "[parameters('selfHostedIntegrationRuntimeName')]",
+          "type": "IntegrationRuntimeReference"
+        }
+      }
+    },
+    {
+      "type": "Microsoft.DataFactory/factories/linkedServices",
+      "apiVersion": "2018-06-01",
+      "name": "[concat(parameters('factoryName'), '/SapBw1')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.DataFactory/factories', parameters('factoryName'))]"
+      ],
+      "properties": {
+        "type": "SapBw",
+        "typeProperties": {
+          "server": "[parameters('sapBwServer')]",
+          "systemNumber": "[parameters('sapBwSystemNumber')]",
+          "clientId": "[parameters('sapBwClientId')]",
+          "userName": "[parameters('sapBwUsername')]",
+          "password": {
+            "type": "AzureKeyVaultSecret",
+            "store": {
+              "referenceName": "AzureKeyVault1",
+              "type": "LinkedServiceReference"
+            },
+            "secretName": "SapBwPassword"
+          }
+        },
+        "connectVia": {
+          "referenceName": "[parameters('selfHostedIntegrationRuntimeName')]",
+          "type": "IntegrationRuntimeReference"
+        }
+      }
+    },
+    {
+      "type": "Microsoft.DataFactory/factories/linkedServices",
+      "apiVersion": "2018-06-01",
+      "name": "[concat(parameters('factoryName'), '/Oracle1')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.DataFactory/factories', parameters('factoryName'))]"
+      ],
+      "properties": {
+        "type": "Oracle",
+        "typeProperties": {
+          "connectionString": {
+            "type": "AzureKeyVaultSecret",
+            "store": {
+              "referenceName": "AzureKeyVault1",
+              "type": "LinkedServiceReference"
+            },
+            "secretName": "OracleConnectionString"
+          }
+        },
+        "connectVia": {
+          "referenceName": "[parameters('selfHostedIntegrationRuntimeName')]",
+          "type": "IntegrationRuntimeReference"
+        }
+      }
+    },
+    {
+      "type": "Microsoft.DataFactory/factories/linkedServices",
+      "apiVersion": "2018-06-01",
+      "name": "[concat(parameters('factoryName'), '/Teradata1')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.DataFactory/factories', parameters('factoryName'))]"
+      ],
+      "properties": {
+        "type": "Teradata",
+        "typeProperties": {
+          "server": "[parameters('teradataServer')]",
+          "authenticationType": "Basic",
+          "username": "[parameters('teradataUsername')]",
+          "password": {
+            "type": "AzureKeyVaultSecret",
+            "store": {
+              "referenceName": "AzureKeyVault1",
+              "type": "LinkedServiceReference"
+            },
+            "secretName": "TeradataPassword"
+          }
+        },
+        "connectVia": {
+          "referenceName": "[parameters('selfHostedIntegrationRuntimeName')]",
+          "type": "IntegrationRuntimeReference"
+        }
+      }
+    },
+    {
+      "type": "Microsoft.DataFactory/factories/linkedServices",
+      "apiVersion": "2018-06-01",
+      "name": "[concat(parameters('factoryName'), '/Db2')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.DataFactory/factories', parameters('factoryName'))]"
+      ],
+      "properties": {
+        "type": "Db2",
+        "typeProperties": {
+          "server": "[parameters('db2Server')]",
+          "database": "[parameters('db2Database')]",
+          "authenticationType": "Basic",
+          "username": "[parameters('db2Username')]",
+          "password": {
+            "type": "AzureKeyVaultSecret",
+            "store": {
+              "referenceName": "AzureKeyVault1",
+              "type": "LinkedServiceReference"
+            },
+            "secretName": "Db2Password"
+          }
+        },
+        "connectVia": {
+          "referenceName": "[parameters('selfHostedIntegrationRuntimeName')]",
+          "type": "IntegrationRuntimeReference"
+        }
+      }
+    },
+    {
+      "type": "Microsoft.DataFactory/factories/linkedServices",
+      "apiVersion": "2018-06-01",
+      "name": "[concat(parameters('factoryName'), '/Sybase1')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.DataFactory/factories', parameters('factoryName'))]"
+      ],
+      "properties": {
+        "type": "Sybase",
+        "typeProperties": {
+          "server": "[parameters('sybaseServer')]",
+          "database": "[parameters('sybaseDatabase')]",
+          "authenticationType": "Basic",
+          "username": "[parameters('sybaseUsername')]",
+          "password": {
+            "type": "AzureKeyVaultSecret",
+            "store": {
+              "referenceName": "AzureKeyVault1",
+              "type": "LinkedServiceReference"
+            },
+            "secretName": "SybasePassword"
+          }
+        },
+        "connectVia": {
+          "referenceName": "[parameters('selfHostedIntegrationRuntimeName')]",
+          "type": "IntegrationRuntimeReference"
+        }
+      }
+    },
+    {
+      "type": "Microsoft.DataFactory/factories/linkedServices",
+      "apiVersion": "2018-06-01",
+      "name": "[concat(parameters('factoryName'), '/Informix1')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.DataFactory/factories', parameters('factoryName'))]"
+      ],
+      "properties": {
+        "type": "Informix",
+        "typeProperties": {
+          "connectionString": {
+            "type": "AzureKeyVaultSecret",
+            "store": {
+              "referenceName": "AzureKeyVault1",
+              "type": "LinkedServiceReference"
+            },
+            "secretName": "InformixConnectionString"
+          }
+        },
+        "connectVia": {
+          "referenceName": "[parameters('selfHostedIntegrationRuntimeName')]",
+          "type": "IntegrationRuntimeReference"
+        }
+      }
+    },
+    {
+      "type": "Microsoft.DataFactory/factories/linkedServices",
+      "apiVersion": "2018-06-01",
+      "name": "[concat(parameters('factoryName'), '/OData1')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.DataFactory/factories', parameters('factoryName'))]"
+      ],
+      "properties": {
+        "type": "OData",
+        "typeProperties": {
+          "url": "[parameters('odataUrl')]",
+          "authenticationType": "Basic",
+          "userName": "[parameters('odataUsername')]",
+          "password": {
+            "type": "AzureKeyVaultSecret",
+            "store": {
+              "referenceName": "AzureKeyVault1",
+              "type": "LinkedServiceReference"
+            },
+            "secretName": "ODataPassword"
+          }
+        },
+        "connectVia": {
+          "referenceName": "[parameters('integrationRuntimeName')]",
+          "type": "IntegrationRuntimeReference"
+        }
+      }
+    },
+    {
+      "type": "Microsoft.DataFactory/factories/linkedServices",
+      "apiVersion": "2018-06-01",
+      "name": "[concat(parameters('factoryName'), '/Odbc1')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.DataFactory/factories', parameters('factoryName'))]"
+      ],
+      "properties": {
+        "type": "Odbc",
+        "typeProperties": {
+          "connectionString": {
+            "type": "AzureKeyVaultSecret",
+            "store": {
+              "referenceName": "AzureKeyVault1",
+              "type": "LinkedServiceReference"
+            },
+            "secretName": "OdbcConnectionString"
+          },
+          "authenticationType": "Basic"
+        },
+        "connectVia": {
+          "referenceName": "[parameters('selfHostedIntegrationRuntimeName')]",
+          "type": "IntegrationRuntimeReference"
+        }
+      }
+    },
+    {
+      "type": "Microsoft.DataFactory/factories/linkedServices",
+      "apiVersion": "2018-06-01",
+      "name": "[concat(parameters('factoryName'), '/GoogleCloudStorage1')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.DataFactory/factories', parameters('factoryName'))]"
+      ],
+      "properties": {
+        "type": "GoogleCloudStorage",
+        "typeProperties": {
+          "accessKeyId": "[parameters('gcsAccessKeyId')]",
+          "secretAccessKey": {
+            "type": "AzureKeyVaultSecret",
+            "store": {
+              "referenceName": "AzureKeyVault1",
+              "type": "LinkedServiceReference"
+            },
+            "secretName": "GcsSecretKey"
+          },
+          "serviceUrl": "[parameters('gcsServiceUrl')]"
+        },
+        "connectVia": {
+          "referenceName": "[parameters('integrationRuntimeName')]",
+          "type": "IntegrationRuntimeReference"
+        }
+      }
+    },
+    {
+      "type": "Microsoft.DataFactory/factories/linkedServices",
+      "apiVersion": "2018-06-01",
+      "name": "[concat(parameters('factoryName'), '/Hdfs1')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.DataFactory/factories', parameters('factoryName'))]"
+      ],
+      "properties": {
+        "type": "Hdfs",
+        "typeProperties": {
+          "url": "[parameters('hdfsUrl')]",
+          "authenticationType": "Windows",
+          "userName": "[parameters('hdfsUsername')]",
+          "password": {
+            "type": "AzureKeyVaultSecret",
+            "store": {
+              "referenceName": "AzureKeyVault1",
+              "type": "LinkedServiceReference"
+            },
+            "secretName": "HdfsPassword"
+          }
+        },
+        "connectVia": {
+          "referenceName": "[parameters('selfHostedIntegrationRuntimeName')]",
+          "type": "IntegrationRuntimeReference"
+        }
+      }
+    },
+    {
+      "type": "Microsoft.DataFactory/factories/linkedServices",
+      "apiVersion": "2018-06-01",
+      "name": "[concat(parameters('factoryName'), '/Hive1')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.DataFactory/factories', parameters('factoryName'))]"
+      ],
+      "properties": {
+        "type": "Hive",
+        "typeProperties": {
+          "host": "[parameters('hiveHost')]",
+          "port": 10000,
+          "serverType": "HiveServer2",
+          "authenticationType": "Anonymous",
+          "serviceDiscoveryMode": false,
+          "enableSsl": false,
+          "thriftTransportProtocol": "Binary"
+        },
+        "connectVia": {
+          "referenceName": "[parameters('selfHostedIntegrationRuntimeName')]",
+          "type": "IntegrationRuntimeReference"
+        }
+      }
+    },
+    {
+      "type": "Microsoft.DataFactory/factories/linkedServices",
+      "apiVersion": "2018-06-01",
+      "name": "[concat(parameters('factoryName'), '/Impala1')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.DataFactory/factories', parameters('factoryName'))]"
+      ],
+      "properties": {
+        "type": "Impala",
+        "typeProperties": {
+          "host": "[parameters('impalaHost')]",
+          "port": 21050,
+          "authenticationType": "Anonymous",
+          "enableSsl": false
+        },
+        "connectVia": {
+          "referenceName": "[parameters('selfHostedIntegrationRuntimeName')]",
+          "type": "IntegrationRuntimeReference"
+        }
+      }
+    },
+    {
+      "type": "Microsoft.DataFactory/factories/linkedServices",
+      "apiVersion": "2018-06-01",
+      "name": "[concat(parameters('factoryName'), '/Presto1')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.DataFactory/factories', parameters('factoryName'))]"
+      ],
+      "properties": {
+        "type": "Presto",
+        "typeProperties": {
+          "host": "[parameters('prestoHost')]",
+          "serverVersion": "0.196",
+          "catalog": "[parameters('prestoCatalog')]",
+          "port": 8080,
+          "authenticationType": "Anonymous"
+        },
+        "connectVia": {
+          "referenceName": "[parameters('selfHostedIntegrationRuntimeName')]",
+          "type": "IntegrationRuntimeReference"
+        }
+      }
+    },
+    {
+      "type": "Microsoft.DataFactory/factories/linkedServices",
+      "apiVersion": "2018-06-01",
+      "name": "[concat(parameters('factoryName'), '/Spark1')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.DataFactory/factories', parameters('factoryName'))]"
+      ],
+      "properties": {
+        "type": "Spark",
+        "typeProperties": {
+          "host": "[parameters('sparkHost')]",
+          "port": 443,
+          "serverType": "SharkServer",
+          "thriftTransportProtocol": "Binary",
+          "authenticationType": "Windows",
+          "username": "[parameters('sparkUsername')]",
+          "password": {
+            "type": "AzureKeyVaultSecret",
+            "store": {
+              "referenceName": "AzureKeyVault1",
+              "type": "LinkedServiceReference"
+            },
+            "secretName": "SparkPassword"
+          },
+          "enableSsl": true
+        },
+        "connectVia": {
+          "referenceName": "[parameters('selfHostedIntegrationRuntimeName')]",
+          "type": "IntegrationRuntimeReference"
+        }
+      }
+    },
+    {
+      "type": "Microsoft.DataFactory/factories/linkedServices",
+      "apiVersion": "2018-06-01",
+      "name": "[concat(parameters('factoryName'), '/MongoDb1')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.DataFactory/factories', parameters('factoryName'))]"
+      ],
+      "properties": {
+        "type": "MongoDb",
+        "typeProperties": {
+          "server": "[parameters('mongoDbServer')]",
+          "authenticationType": "Basic",
+          "username": "[parameters('mongoDbUsername')]",
+          "password": {
+            "type": "AzureKeyVaultSecret",
+            "store": {
+              "referenceName": "AzureKeyVault1",
+              "type": "LinkedServiceReference"
+            },
+            "secretName": "MongoDbPassword"
+          },
+          "authSource": "[parameters('mongoDbAuthSource')]",
+          "port": 27017,
+          "enableSsl": false,
+          "allowSelfSignedServerCert": false
+        },
+        "connectVia": {
+          "referenceName": "[parameters('integrationRuntimeName')]",
+          "type": "IntegrationRuntimeReference"
+        }
+      }
+    },
+    {
+      "type": "Microsoft.DataFactory/factories/linkedServices",
+      "apiVersion": "2018-06-01",
+      "name": "[concat(parameters('factoryName'), '/Cassandra1')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.DataFactory/factories', parameters('factoryName'))]"
+      ],
+      "properties": {
+        "type": "Cassandra",
+        "typeProperties": {
+          "host": "[parameters('cassandraHost')]",
+          "port": 9042,
+          "authenticationType": "Basic",
+          "username": "[parameters('cassandraUsername')]",
+          "password": {
+            "type": "AzureKeyVaultSecret",
+            "store": {
+              "referenceName": "AzureKeyVault1",
+              "type": "LinkedServiceReference"
+            },
+            "secretName": "CassandraPassword"
+          }
+        },
+        "connectVia": {
+          "referenceName": "[parameters('selfHostedIntegrationRuntimeName')]",
+          "type": "IntegrationRuntimeReference"
+        }
+      }
+    },
+    {
+      "type": "Microsoft.DataFactory/factories/linkedServices",
+      "apiVersion": "2018-06-01",
+      "name": "[concat(parameters('factoryName'), '/Couchbase1')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.DataFactory/factories', parameters('factoryName'))]"
+      ],
+      "properties": {
+        "type": "Couchbase",
+        "typeProperties": {
+          "connectionString": {
+            "type": "AzureKeyVaultSecret",
+            "store": {
+              "referenceName": "AzureKeyVault1",
+              "type": "LinkedServiceReference"
+            },
+            "secretName": "CouchbaseConnectionString"
+          }
+        },
+        "connectVia": {
+          "referenceName": "[parameters('selfHostedIntegrationRuntimeName')]",
+          "type": "IntegrationRuntimeReference"
+        }
+      }
+    },
+    {
+      "type": "Microsoft.DataFactory/factories/linkedServices",
+      "apiVersion": "2018-06-01",
+      "name": "[concat(parameters('factoryName'), '/Elasticsearch1')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.DataFactory/factories', parameters('factoryName'))]"
+      ],
+      "properties": {
+        "type": "Elasticsearch",
+        "typeProperties": {
+          "endpoint": "[parameters('elasticsearchEndpoint')]",
+          "authenticationType": "Basic",
+          "username": "[parameters('elasticsearchUsername')]",
+          "password": {
+            "type": "AzureKeyVaultSecret",
+            "store": {
+              "referenceName": "AzureKeyVault1",
+              "type": "LinkedServiceReference"
+            },
+            "secretName": "ElasticsearchPassword"
+          },
+          "enableSsl": true
+        },
+        "connectVia": {
+          "referenceName": "[parameters('selfHostedIntegrationRuntimeName')]",
+          "type": "IntegrationRuntimeReference"
+        }
+      }
+    },
+    {
+      "type": "Microsoft.DataFactory/factories/linkedServices",
+      "apiVersion": "2018-06-01",
+      "name": "[concat(parameters('factoryName'), '/GoogleBigQuery1')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.DataFactory/factories', parameters('factoryName'))]"
+      ],
+      "properties": {
+        "type": "GoogleBigQuery",
+        "typeProperties": {
+          "project": "[parameters('googleBigQueryProject')]",
+          "authenticationType": "ServiceAuthentication",
+          "refreshToken": {
+            "type": "AzureKeyVaultSecret",
+            "store": {
+              "referenceName": "AzureKeyVault1",
+              "type": "LinkedServiceReference"
+            },
+            "secretName": "GoogleBigQueryRefreshToken"
+          }
+        },
+        "connectVia": {
+          "referenceName": "[parameters('integrationRuntimeName')]",
+          "type": "IntegrationRuntimeReference"
+        }
+      }
+    },
+    {
+      "type": "Microsoft.DataFactory/factories/linkedServices",
+      "apiVersion": "2018-06-01",
+      "name": "[concat(parameters('factoryName'), '/Greenplum1')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.DataFactory/factories', parameters('factoryName'))]"
+      ],
+      "properties": {
+        "type": "Greenplum",
+        "typeProperties": {
+          "connectionString": {
+            "type": "AzureKeyVaultSecret",
+            "store": {
+              "referenceName": "AzureKeyVault1",
+              "type": "LinkedServiceReference"
+            },
+            "secretName": "GreenplumConnectionString"
+          }
+        },
+        "connectVia": {
+          "referenceName": "[parameters('selfHostedIntegrationRuntimeName')]",
+          "type": "IntegrationRuntimeReference"
+        }
+      }
+    },
+    {
+      "type": "Microsoft.DataFactory/factories/linkedServices",
+      "apiVersion": "2018-06-01",
+      "name": "[concat(parameters('factoryName'), '/HBase1')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.DataFactory/factories', parameters('factoryName'))]"
+      ],
+      "properties": {
+        "type": "HBase",
+        "typeProperties": {
+          "host": "[parameters('hbaseHost')]",
+          "port": 9090,
+          "httpPath": "/gateway/sandbox/hbase/version",
+          "authenticationType": "Anonymous",
+          "enableSsl": false
+        },
+        "connectVia": {
+          "referenceName": "[parameters('selfHostedIntegrationRuntimeName')]",
+          "type": "IntegrationRuntimeReference"
+        }
+      }
+    },
+    {
+      "type": "Microsoft.DataFactory/factories/linkedServices",
+      "apiVersion": "2018-06-01",
+      "name": "[concat(parameters('factoryName'), '/HBase1')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.DataFactory/factories', parameters('factoryName'))]"
+      ],
+      "properties": {
+        "type": "HBase",
+        "typeProperties": {
+          "host": "[parameters('hbaseHost')]",
+          "port": 9090,
+          "httpPath": "/gateway/sandbox/hbase/version",
+          "authenticationType": "Anonymous",
+          "enableSsl": false
+        },
+        "connectVia": {
+          "referenceName": "[parameters('selfHostedIntegrationRuntimeName')]",
+          "type": "IntegrationRuntimeReference"
+        }
+      }
+    },
+    {
+      "type": "Microsoft.DataFactory/factories/linkedServices",
+      "apiVersion": "2018-06-01",
+      "name": "[concat(parameters('factoryName'), '/Phoenix1')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.DataFactory/factories', parameters('factoryName'))]"
+      ],
+      "properties": {
+        "type": "Phoenix",
+        "typeProperties": {
+          "host": "[parameters('phoenixHost')]",
+          "port": 8765,
+          "httpPath": "/gateway/sandbox/phoenix/version",
+          "authenticationType": "Anonymous",
+          "enableSsl": false
+        },
+        "connectVia": {
+          "referenceName": "[parameters('selfHostedIntegrationRuntimeName')]",
+          "type": "IntegrationRuntimeReference"
+        }
+      }
+    },
+    {
+      "type": "Microsoft.DataFactory/factories/linkedServices",
+      "apiVersion": "2018-06-01",
+      "name": "[concat(parameters('factoryName'), '/Zoho1')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.DataFactory/factories', parameters('factoryName'))]"
+      ],
+      "properties": {
+        "type": "Zoho",
+        "typeProperties": {
+          "connectionString": {
+            "type": "AzureKeyVaultSecret",
+            "store": {
+              "referenceName": "AzureKeyVault1",
+              "type": "LinkedServiceReference"
+            },
+            "secretName": "ZohoConnectionString"
+          },
+          "encryptedCredential": "[parameters('zohoEncryptedCredential')]"
+        },
+        "connectVia": {
+          "referenceName": "[parameters('integrationRuntimeName')]",
+          "type": "IntegrationRuntimeReference"
+        }
+      }
+    },
+    {
+      "type": "Microsoft.DataFactory/factories/linkedServices",
+      "apiVersion": "2018-06-01",
+      "name": "[concat(parameters('factoryName'), '/Xero1')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.DataFactory/factories', parameters('factoryName'))]"
+      ],
+      "properties": {
+        "type": "Xero",
+        "typeProperties": {
+          "connectionString": {
+            "type": "AzureKeyVaultSecret",
+            "store": {
+              "referenceName": "AzureKeyVault1",
+              "type": "LinkedServiceReference"
+            },
+            "secretName": "XeroConnectionString"
+          },
+          "encryptedCredential": "[parameters('xeroEncryptedCredential')]"
+        },
+        "connectVia": {
+          "referenceName": "[parameters('integrationRuntimeName')]",
+          "type": "IntegrationRuntimeReference"
+        }
+      }
+    },
+    {
+      "type": "Microsoft.DataFactory/factories/linkedServices",
+      "apiVersion": "2018-06-01",
+      "name": "[concat(parameters('factoryName'), '/Square1')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.DataFactory/factories', parameters('factoryName'))]"
+      ],
+      "properties": {
+        "type": "Square",
+        "typeProperties": {
+          "connectionString": {
+            "type": "AzureKeyVaultSecret",
+            "store": {
+              "referenceName": "AzureKeyVault1",
+              "type": "LinkedServiceReference"
+            },
+            "secretName": "SquareConnectionString"
+          },
+          "encryptedCredential": "[parameters('squareEncryptedCredential')]"
+        },
+        "connectVia": {
+          "referenceName": "[parameters('integrationRuntimeName')]",
+          "type": "IntegrationRuntimeReference"
+        }
+      }
+    },
+    {
+      "type": "Microsoft.DataFactory/factories/linkedServices",
+      "apiVersion": "2018-06-01",
+      "name": "[concat(parameters('factoryName'), '/Spark1')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.DataFactory/factories', parameters('factoryName'))]"
+      ],
+      "properties": {
+        "type": "Spark",
+        "typeProperties": {
+          "host": "[parameters('sparkHost')]",
+          "port": 443,
+          "serverType": "SharkServer",
+          "thriftTransportProtocol": "Binary",
+          "authenticationType": "Windows",
+          "username": "[parameters('sparkUsername')]",
+          "password": {
+            "type": "AzureKeyVaultSecret",
+            "store": {
+              "referenceName": "AzureKeyVault1",
+              "type": "LinkedServiceReference"
+            },
+            "secretName": "SparkPassword"
+          },
+          "enableSsl": true
+        },
+        "connectVia": {
+          "referenceName": "[parameters('selfHostedIntegrationRuntimeName')]",
+          "type": "IntegrationRuntimeReference"
+        }
+      }
+    },
+    {
+      "type": "Microsoft.DataFactory/factories/linkedServices",
+      "apiVersion": "2018-06-01",
+      "name": "[concat(parameters('factoryName'), '/GenericHttp1')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.DataFactory/factories', parameters('factoryName'))]"
+      ],
+      "properties": {
+        "type": "HttpServer",
+        "typeProperties": {
+          "url": "[parameters('genericHttpUrl')]",
+          "enableServerCertificateValidation": true,
+          "authenticationType": "Anonymous"
+        },
+        "connectVia": {
+          "referenceName": "[parameters('integrationRuntimeName')]",
+          "type": "IntegrationRuntimeReference"
+        }
+      }
+    }
+  ]
+}
+
